@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/consensus/Consensus.hpp>
 #include <libmaus/math/binom.hpp>
 
@@ -32,7 +32,7 @@ std::string libmaus::consensus::ConsensusComputationBase::computeConsensus(
 {
 	#if defined(LIBMAUS_HAVE_DL_FUNCS)
 	::libmaus::util::DynamicLibraryFunction<libmaus_consensus_ConsensusComputationBase_computeConsensusX_wrapperC_type> DLF(
-		"liblibmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_computeConsensusQ_wrapperC");
+		"libmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_computeConsensusQ_wrapperC");
 	
 	std::string R;
 	int const r = DLF.func(obj,&R,&V,verbose,ostr);
@@ -60,7 +60,7 @@ std::string libmaus::consensus::ConsensusComputationBase::computeConsensus(
 {
 	#if defined(LIBMAUS_HAVE_DL_FUNCS)
 	::libmaus::util::DynamicLibraryFunction<libmaus_consensus_ConsensusComputationBase_computeConsensusX_wrapperC_type> DLF(
-		"liblibmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_computeConsensusA_wrapperC");
+		"libmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_computeConsensusA_wrapperC");
 
 	std::string R;
 	int const r = DLF.func(obj,&R,&V,verbose,ostr);
@@ -86,7 +86,7 @@ void libmaus::consensus::ConsensusComputationBase::construct(void ** P)
 {
 	#if defined(LIBMAUS_HAVE_DL_FUNCS)
 	::libmaus::util::DynamicLibraryFunction<libmaus_consensus_ConsensusComputationBase_construct_wrapperC_type> DLF(
-		"liblibmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_construct_wrapperC");
+		"libmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_construct_wrapperC");
 
 	int const r = DLF.func(P);
 	
@@ -111,7 +111,7 @@ void libmaus::consensus::ConsensusComputationBase::destruct(void * P)
 {
 	#if defined(LIBMAUS_HAVE_DL_FUNCS)
 	::libmaus::util::DynamicLibraryFunction<libmaus_consensus_ConsensusComputationBase_destruct_wrapperC_type> DLF(
-		"liblibmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_destruct_wrapperC");
+		"libmaus_consensus_mod.so","libmaus_consensus_ConsensusComputationBase_destruct_wrapperC");
 
 	int const r = DLF.func(P);
 	

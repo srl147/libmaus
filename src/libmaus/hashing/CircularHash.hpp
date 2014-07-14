@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_HASHING_CIRCULARHASH_HPP)
 #define LIBMAUS_HASHING_CIRCULARHASH_HPP
 
 #include <libmaus/bitbtree/bitbtree.hpp>
+#include <libmaus/bambam/BamAlignmentExpungeCallback.hpp>
 
 namespace libmaus
 {
@@ -30,6 +31,10 @@ namespace libmaus
 		struct CircularHash
 		{
 			typedef _overflow_type overflow_type;
+			typedef CircularHash<overflow_type> this_type;
+			typedef typename ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef typename ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+			
 			typedef uint32_t pos_type;
 			typedef uint32_t entry_size_type;
 			typedef uint32_t hash_type;
@@ -53,9 +58,33 @@ namespace libmaus
 			// current insert pointer
 			pos_type ipos;
 			
+			libmaus::bambam::BamAlignmentExpungeCallback * expungecallback;
+			
+			uint64_t hashexpunge;
+			uint64_t wrapexpunge;
+			
+			std::ostream & printCounters(std::ostream & out) const
+			{
+				out << "hashexpunge=" << hashexpunge << " wrapexpunge=" << wrapexpunge << std::endl;
+				return out;
+			}
+			
 			static hash_type unused()
 			{
 				return std::numeric_limits<hash_type>::max();
+			}
+			
+			static uint64_t checkBSize(uint64_t const bsize)
+			{
+				if ( bsize-1 <= static_cast<uint64_t>(std::numeric_limits<pos_type>::max()) )
+					return bsize;
+				else
+				{
+					libmaus::exception::LibMausException se;
+					se.getStream() << "CircularHash: table size is too big." << std::endl;
+					se.finish();
+					throw se;
+				}
 			}
 			
 			CircularHash(
@@ -69,12 +98,15 @@ namespace libmaus
 			  tablesize(1ull << tablesizelog),
 			  tablemask(tablesize-1),
 			  entrysize(rentrysize),
-			  bsize(libmaus::math::nextTwoPow(entrysize * tablesize)),
+			  bsize(checkBSize(libmaus::math::nextTwoPow(entrysize * tablesize))),
 			  bmask(bsize-1),
 			  H(tablesize,false),
 			  B(bsize,false),
 			  R(B.size(),false),
-			  ipos(0)
+			  ipos(0),
+			  expungecallback(0),
+			  hashexpunge(0),
+			  wrapexpunge(0)
 			{
 				std::fill(H.begin(),H.end(),unused());
 			}
@@ -125,8 +157,11 @@ namespace libmaus
 				
 				// can we write without wrap around?
 				if ( datapos + len <= B.size() )
-				{
+				{											
 					overflow.write(B.begin()+datapos,len,true,len);
+
+					if ( expungecallback )
+						expungecallback->expunged(B.begin()+datapos,len);
 				}
 				else
 				{
@@ -135,6 +170,9 @@ namespace libmaus
 
 					overflow.write(B.begin()+datapos,flen,true,len);
 					overflow.write(B.begin(),slen,false,len);
+
+					if ( expungecallback )
+						expungecallback->expunged(B.begin()+datapos,flen,B.begin(),slen);
 				}
 			
 				// assert ( R[elpos] );	
@@ -229,6 +267,8 @@ namespace libmaus
 					// remove element
 					if ( ! overflowEntry(elpos,hv) )
 						return false;
+						
+					hashexpunge += 1;
 				}
 				
 				// assert ( H[hv&tablemask] == unused() );
@@ -242,6 +282,8 @@ namespace libmaus
 					// assert ( R[next1] );
 					if ( ! overflowEntry(next1) )
 						return false;
+						
+					wrapexpunge += 1;
 				}
 				
 				pos_type const inspos = ipos;
@@ -279,6 +321,16 @@ namespace libmaus
 				}
 				
 				return true;
+			}
+
+			/**
+			 * set expunge callback
+			 *
+			 * @param rrexpungecallback callback
+			 **/
+			void setExpungeCallback(libmaus::bambam::BamAlignmentExpungeCallback * rexpungecallback)
+			{
+				expungecallback = rexpungecallback;
 			}
 		};
 	}

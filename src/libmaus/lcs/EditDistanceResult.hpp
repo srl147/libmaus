@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,10 +15,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(EDITDISTANCERESULT_HPP)
 #define EDITDISTANCERESULT_HPP
+
+#include <libmaus/types/types.hpp>
+#include <ostream>
 
 namespace libmaus
 {
@@ -38,7 +41,23 @@ namespace libmaus
 			EditDistanceResult(uint64_t rnumins, uint64_t rnumdel, uint64_t rnummat, uint64_t rnummis)
 			: numins(rnumins), numdel(rnumdel), nummat(rnummat), nummis(rnummis)
 			{}
+			
+			bool operator==(EditDistanceResult const & o) const
+			{
+				return
+					numins == o.numins &&
+					numdel == o.numdel &&
+					nummat == o.nummat &&
+					nummis == o.nummis;
+			}
+			
+			bool operator!=(EditDistanceResult const & o) const
+			{
+				return !operator==(o);
+			}
 		};
+		
+		std::ostream & operator<<(std::ostream & out, EditDistanceResult const &);
 	}
 }
 #endif

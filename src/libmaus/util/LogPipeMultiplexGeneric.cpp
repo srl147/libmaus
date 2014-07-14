@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/LogPipeMultiplexGeneric.hpp>
 						
@@ -56,13 +56,12 @@ libmaus::util::LogPipeMultiplexGeneric::LogPipeMultiplexGeneric(
 	stderrpipe[0] = stderrpipe[1] = -1;
 
 	// connect
-	sock = UNIQUE_PTR_MOVE(
-		::libmaus::network::ClientSocket::unique_ptr_type(
-			new ::libmaus::network::ClientSocket(
-				port,serverhostname.c_str()
-			)
-		)
-	);
+	::libmaus::network::ClientSocket::unique_ptr_type tsock(
+                        new ::libmaus::network::ClientSocket(
+                                port,serverhostname.c_str()
+                        )
+                );
+	sock = UNIQUE_PTR_MOVE(tsock);
 	
 	// no delay on socket
 	sock->setNoDelay();

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(MEMOUTBUFFER_HPP)
@@ -28,23 +28,48 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * in memory output buffer
+		 **/
+		template<typename _value_type>
 		struct MemOutBuffer
 		{
-			uint64_t * out;
+			//! value type
+			typedef _value_type value_type;
+			//! this type
+			typedef MemOutBuffer<value_type> this_type;
+			//! unique pointer type
+			typedef typename ::libmaus::util::unique_ptr < this_type >::type unique_ptr_type;
 
-			typedef MemOutBuffer this_type;
-			typedef ::libmaus::util::unique_ptr < this_type >::type unique_ptr_type;
+			private:
+			//! output pointer
+			value_type * out;
 			
-			MemOutBuffer(uint64_t * const rout)
+			public:
+			/**
+			 * constructor
+			 *
+			 * @param rout output buffer pointer
+			 **/
+			MemOutBuffer(value_type * const rout)
 			: out(rout)
 			{
 			
 			}
 			
-			void put(uint64_t const v)
+			/**
+			 * put element
+			 *
+			 * @param v element
+			 **/
+			void put(value_type const v)
 			{
 				*(out++) = v;
 			}
+			
+			/**
+			 * flush buffer (do nothing)
+			 **/
 			void flush()
 			{
 			

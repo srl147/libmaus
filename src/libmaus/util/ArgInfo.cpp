@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/util/ArgInfo.hpp>
 		
 bool libmaus::util::ArgInfo::helpRequested() const
@@ -116,6 +116,7 @@ void libmaus::util::ArgInfo::init(std::vector<std::string> const args)
 	{
 		std::pair<std::string,std::string> valpair = ::libmaus::util::stringFunctions::tokenizePair<std::string>(args[i],std::string("="));
 		argmap[valpair.first] = valpair.second;
+		argmultimap.insert(std::pair<std::string,std::string>(valpair.first,valpair.second));
 	}
 	
 	for ( ; i < args.size(); ++i )

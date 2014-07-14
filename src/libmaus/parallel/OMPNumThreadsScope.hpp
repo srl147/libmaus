@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_PARALLEL_OMPNUMTHREADSSCOPE_HPP)
 #define LIBMAUS_PARALLEL_OMPNUMTHREADSSCOPE_HPP
 
@@ -40,7 +40,11 @@ namespace libmaus
 			
 			uint64_t const prevnumthreads;
 		
-			OMPNumThreadsScope(uint64_t const newnumthreads = getMaxThreads())
+			OMPNumThreadsScope(uint64_t const 
+				#if defined(_OPENMP)
+				newnumthreads = getMaxThreads()
+				#endif
+			)
 			: prevnumthreads(getMaxThreads())
 			{
 				#if defined(_OPENMP)

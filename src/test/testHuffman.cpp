@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/huffman/IndexLoaderBase.hpp>
 #include <iostream>
@@ -24,6 +24,7 @@
 #include <libmaus/math/isqrt.hpp>
 #include <libmaus/wavelet/HuffmanWaveletTree.hpp>
 #include <libmaus/huffman/CanonicalEncoder.hpp>
+#include <libmaus/huffman/HuffmanTree.hpp>
 
 bool checkNontrivial(std::string const & s)
 {
@@ -549,8 +550,100 @@ void testFibonacciTables()
 #include <libmaus/huffman/GapEncoder.hpp>
 #include <libmaus/huffman/GapDecoder.hpp>
 
+
+uint64_t fibo(uint64_t i)
+{
+	if ( i < 2 )
+		return 1;
+	
+	uint64_t f_0 = 1, f_1 = 1;
+	for ( uint64_t j = 2; j <= i; ++j )
+	{
+		f_1 = f_0+f_1;
+		std::swap(f_0,f_1);
+	}
+	
+	return f_0;
+}
+
+void testHuffmanTree()
+{
+	// std::cerr << sizeof(HuffmanNode) << std::endl;
+	
+	std::map<int64_t,uint64_t> M;
+	#if 1
+	for ( uint64_t i = 0; i <= 20; ++i )
+		M[i] = fibo(i);
+	#else
+	for ( uint64_t i = 0; i < 15; ++i )
+		M[i]  = 1;
+	#endif
+	libmaus::huffman::HuffmanTree H(M.begin(),M.size(),true,true);
+	// std::cerr << H;
+	// H.printLeafCodes(std::cerr);
+	
+	std::string const ser = H.serialise();
+	std::istringstream istr(ser);
+	libmaus::huffman::HuffmanTree H2(istr);
+	assert ( H == H2 );
+	#if 0
+	H2.testComputeSubTreeCounts();
+	H2.assignDfsIds();
+	std::cerr << "start dfs" << std::endl;
+	std::cerr << H2;
+	H2.testAssignDfsIds();
+	#endif
+	
+	libmaus::huffman::HuffmanTree H3(M.begin(),M.size(),true /* sort leafs by depth */,true /* assign codes */,true /* order by inner nodes by dfs */);
+	std::cerr << "start reordered: " << H3.root()-H3.leafs() << std::endl;
+	std::cerr << H3;
+		
+	std::ostringstream ostrout;
+	libmaus::bitio::BitWriterStream8 BWS8(ostrout);
+	libmaus::huffman::HuffmanTree::EncodeTable E(H);
+	for ( uint64_t i = 0; i < 16; ++i )
+	{
+		int64_t const sym = i % 15;
+		BWS8.write(E.getCode(sym),E.getCodeLength(sym));
+	}
+	BWS8.flush();
+	
+	std::istringstream bitistr(ostrout.str());
+	libmaus::bitio::StreamBitInputStream BIN(bitistr);
+	for ( uint64_t i = 0; i < 16; ++i )
+	{
+		// std::cerr << H.decodeSlow(BIN) << std::endl;
+		assert ( static_cast<int64_t>(H.decodeSlow(BIN)) == static_cast<int64_t>(i % 15) );
+	}
+}
+
+void testHuffmanTreeNoCnt()
+{
+	std::vector<uint8_t> syms;
+	syms.push_back(0);
+	syms.push_back(1);
+	syms.push_back(2);
+	syms.push_back(3);
+	syms.push_back(4);
+	syms.push_back(5);
+	syms.push_back(6);
+	syms.push_back(8);
+	syms.push_back(10);
+	syms.push_back(16);
+	syms.push_back(33);
+	libmaus::huffman::HuffmanTree H(syms);
+	libmaus::huffman::HuffmanTree::EncodeTable E(H);
+	std::cerr << H;
+	std::cerr << E;
+}
+
 int main()
 {
+	testHuffmanTreeNoCnt();
+	//testHuffmanTree();	
+	
+	return 0;
+
 	::libmaus::util::Histogram hist;
 	unsigned int seq[] = { 0,1,1,0,1,2,4,1,3,1,5,1,1,1 };
 	uint64_t const seqn = sizeof(seq)/sizeof(seq[0]);

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TRIPLEEDGEBUFFERSET_HPP)
 #define TRIPLEEDGEBUFFERSET_HPP
@@ -40,7 +40,10 @@ namespace libmaus
 			: numparts(rnumparts), buffers(numparts)
 			{
 				for ( uint64_t i = 0; i < numparts; ++i )
-					buffers[i] = UNIQUE_PTR_MOVE(buffer_ptr_type ( new buffer_type (tmpgen) ) );
+				{
+					buffer_ptr_type tbuffersi( new buffer_type (tmpgen) );
+					buffers[i] = UNIQUE_PTR_MOVE(tbuffersi);
+				}
 			}
 
 			void registerFileName(uint64_t const part, std::string const & filename)

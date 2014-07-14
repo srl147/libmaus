@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_BAMALIGNMENTCOMPARATOR_HPP)
 #define LIBMAUS_BAMBAM_BAMALIGNMENTCOMPARATOR_HPP
 
@@ -25,8 +25,19 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * bam alignment simple name comparator using pure lexicographic strcmp order
+		 **/
 		struct BamAlignmentComparator
 		{
+			/**
+			 * compare alignments A and B concerning read names via strcmp and if the names
+			 * are equal then A < B if A is marked as read 1
+			 *
+			 * @param A alignment
+			 * @param B alignment
+			 * @return A < B via simple read name comparison
+			 **/
 			bool operator()(
 				::libmaus::bambam::BamAlignment::shared_ptr_type const & A,
 				::libmaus::bambam::BamAlignment::shared_ptr_type const & B) const

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(TRIESTATE_HPP)
 #define TRIESTATE_HPP
 
@@ -113,9 +113,11 @@ namespace libmaus
 			int64_t F;
 			bool final;
 			std::vector<uint64_t> ids;
+			int64_t parent;
+			int64_t depth;
 
 			LinearTrieStateBase(bool const rfinal = false)
-			: F(-1), final(rfinal)
+			: F(-1), final(rfinal), parent(-1), depth(0)
 			{
 			
 			}
@@ -174,9 +176,33 @@ namespace libmaus
 			typedef typename ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 			typedef typename ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
 			
+			private:
+			LinearHashTrie()
+			: V(), H()
+			{
+			}
+			
+			public:
 			std::vector < LinearTrieStateBase<char_type> > V;
 			typename ::libmaus::util::SimpleHashMap<uint64_t,id_type>::unique_ptr_type H;
 			
+			unique_ptr_type uclone() const
+			{
+				unique_ptr_type O(new this_type);
+				O->V = V;
+				O->H = UNIQUE_PTR_MOVE(H->uclone());
+				return UNIQUE_PTR_MOVE(O);
+			}
+
+			shared_ptr_type sclone() const
+			{
+				shared_ptr_type O(new this_type);
+				O->V = this->V;
+				typename ::libmaus::util::SimpleHashMap<uint64_t,id_type>::unique_ptr_type tOH(this->H->uclone());
+				O->H = UNIQUE_PTR_MOVE(tOH);
+				return O;
+			}
+						
 			static unsigned int ensureSize(uint64_t const numedges, unsigned int log)
 			{
 				while ( numedges > (1ull << log) )
@@ -195,10 +221,11 @@ namespace libmaus
 			{}
 			
 			private:
-			LinearHashTrie & operator=(LinearHashTrie const & o)
+			LinearHashTrie & operator=(LinearHashTrie const & /* o */)
 			{
 				return this;
 			}
+			
 			
 			public:
 			static uint64_t pairToHashValue(uint64_t const from, char_type const & c)
@@ -209,6 +236,36 @@ namespace libmaus
 			void addTransition(uint64_t const from, char_type const & c, uint64_t const to)
 			{
 				H -> insert ( pairToHashValue(from,c), to );
+			}
+
+			void fillDepthParent()
+			{
+				std::vector < uint64_t > edges;
+				
+				for (
+					typename ::libmaus::util::SimpleHashMap<uint64_t,id_type>::pair_type const * P = H->begin();
+					P != H->end();
+					++P )
+					if ( P->first != ::libmaus::util::SimpleHashMap<uint64_t,id_type>::unused() )
+					{
+						uint64_t const from = (P->first >> 32);
+						// uint64_t const c = P->first & 0xFFFFFFFFull;
+						uint64_t const to = P->second;
+						
+						V[to].parent = from;
+						
+						edges.push_back(P->first);
+					}
+				
+				std::sort(edges.begin(),edges.end());
+				
+				for ( uint64_t i = 0; i < edges.size(); ++i )
+				{
+					uint64_t const from = (edges[i] >> 32);
+				
+					if ( V[from].parent != -1 )
+						V[from].depth = V[V[from].parent].depth+1;
+				}
 			}
 			
 			bool hasTransition(uint64_t const from, char_type const & c) const
@@ -234,6 +291,20 @@ namespace libmaus
 				int64_t cur = 0;
 				
 				for ( iterator itc = ita; (cur != -1) && itc != ite; ++itc )
+					cur = hasTransition(cur,*itc) ? H->get(pairToHashValue(cur,*itc)) : -1;
+				
+				if ( cur != -1 && cur < static_cast<int64_t>(V.size()) && V[cur].final && V[cur].ids.size() == 1 )
+					return V[cur].ids[0];
+				else
+					return -1;
+			}
+
+			template<typename iterator>
+			int64_t searchCompleteNoFailureZ(iterator ita) const
+			{
+				int64_t cur = 0;
+				
+				for ( iterator itc = ita; (cur != -1) && (*itc); ++itc )
 					cur = hasTransition(cur,*itc) ? H->get(pairToHashValue(cur,*itc)) : -1;
 				
 				if ( cur != -1 && cur < static_cast<int64_t>(V.size()) && V[cur].final && V[cur].ids.size() == 1 )
@@ -477,7 +548,7 @@ namespace libmaus
 			{
 				typename std::map < char_type, typename TrieState<char_type>::shared_ptr_type >::const_iterator ita;
 				while ( cur && ((ita = cur->TT.find(c)) == cur->TT.end()) )
-					cur = cur.F;
+					cur = cur->F;
 				if ( ! cur )
 					return initial.get();
 				else
@@ -663,6 +734,8 @@ namespace libmaus
 						S.push(ita->second.get());
 					}
 				}
+				
+				LHT->fillDepthParent();
 				
 				return UNIQUE_PTR_MOVE(LHT);				
 			}

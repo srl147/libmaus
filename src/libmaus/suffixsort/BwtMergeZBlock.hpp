@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_SUFFIXSORT_BWTMERGEZBLOCK_HPP)
 #define LIBMAUS_SUFFIXSORT_BWTMERGEZBLOCK_HPP
 
@@ -29,9 +29,11 @@ namespace libmaus
 	{
 		struct BwtMergeZBlock
 		{
+			private:
 			uint64_t zabspos;
 			uint64_t zrank;
 			
+			public:
 			BwtMergeZBlock()
 			: zabspos(0), zrank(0)
 			{
@@ -48,6 +50,9 @@ namespace libmaus
 			{
 			
 			}
+			
+			uint64_t getZAbsPos() const { return zabspos; }
+			uint64_t getZRank() const { return zrank; }
 			
 			static BwtMergeZBlock load(std::string const & s)
 			{
@@ -72,7 +77,7 @@ namespace libmaus
 
 		inline std::ostream & operator<<(std::ostream & out, BwtMergeZBlock const & zblock)
 		{
-			out << "BwtMergeZBlock(abspos=" << zblock.zabspos << ",rank=" << zblock.zrank << ")";
+			out << "BwtMergeZBlock(abspos=" << zblock.getZAbsPos() << ",rank=" << zblock.getZRank() << ")";
 			return out;
 		}
 	}

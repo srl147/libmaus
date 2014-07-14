@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TRIPLEEDGE_HPP)
 #define TRIPLEEDGE_HPP
@@ -31,7 +31,7 @@ namespace libmaus
 		struct TripleEdge
 		{
 			typedef TripleEdge this_type;
-			typedef uint32_t node_id_type;
+			typedef uint64_t node_id_type;
 			typedef uint32_t link_weight_type;
 
 			node_id_type a;
@@ -73,8 +73,8 @@ namespace libmaus
 			static TripleEdge random()
 			{
 				return TripleEdge ( 
-					::libmaus::random::Random::rand32() % 8,
-					::libmaus::random::Random::rand32() % 8,
+					::libmaus::random::Random::rand64() % 8,
+					::libmaus::random::Random::rand64() % 8,
 					::libmaus::random::Random::rand16() % 4
 				);
 			}

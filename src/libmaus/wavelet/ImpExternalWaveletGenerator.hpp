@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(IMPEXTERNALWAVELETGENERATOR_HPP)
 #define IMPEXTERNALWAVELETGENERATOR_HPP
@@ -68,7 +68,8 @@ namespace libmaus
 					for ( uint64_t i = 0; i < (1ull<<ib); ++i )
 					{
 						outputfilenames[ib].push_back(tmpgen.getFileName());
-						contexts[ib][i] = UNIQUE_PTR_MOVE(context_ptr_type(new context_type(outputfilenames[ib].back(), 0, false /* no header */)));
+						context_ptr_type tcontextsibi(new context_type(outputfilenames[ib].back(), 0, false /* no header */));
+						contexts[ib][i] = UNIQUE_PTR_MOVE(tcontextsibi);
 					}
 				}
 			}

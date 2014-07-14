@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_SORTING_PAIRFILESORTING_HPP)
 #define LIBMAUS_SORTING_PAIRFILESORTING_HPP
 
@@ -23,6 +23,10 @@
 #include <vector>
 #include <string>
 #include <queue>
+
+#if defined(_OPENMP)
+#include <parallel/algorithm>
+#endif
 
 #include <libmaus/aio/FileFragment.hpp>
 #include <libmaus/aio/ReorderConcatGenericInput.hpp>
@@ -75,6 +79,23 @@ namespace libmaus
 				
 				}
 				
+				std::ostream & toStream(std::ostream & out) const
+				{
+					out 
+						<< "Triple("
+						<< std::setw(16) << std::setfill('0') << std::hex << first << std::dec << std::setw(0) << ","
+						<< std::setw(16) << std::setfill('0') << std::hex << second << std::dec << std::setw(0) << ","
+						<< std::setw(16) << std::setfill('0') << std::hex << third << std::dec << std::setw(0) << ")";
+
+					return out;
+				}
+				
+				std::string toString() const
+				{
+					std::ostringstream ostr;
+					toStream(ostr);
+					return ostr.str();
+				}
 			};
 
 			template<typename first_type, typename second_type, typename third_type>
@@ -123,29 +144,32 @@ namespace libmaus
 					std::priority_queue < 
 						triple_type, 
 						std::vector<triple_type>, 
-						TripleFirstComparator<uint64_t,uint64_t,uint64_t> 
+						comparator_type
 					> Q;
 							
 					for ( uint64_t i = 0; i < numblocks; ++i )
 					{
 						uint64_t const rwords = (i+1==numblocks) ?  
 									(lastblock?(2*lastblock):(2*elnum)) : (2*elnum);
-						in[i] = UNIQUE_PTR_MOVE(
-							::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type
-							(
-								new ::libmaus::aio::SynchronousGenericInput<uint64_t>(
-									tmpfilename,16*1024,2*i*elnum,
-									rwords
-								) 
-							)
-						);
-				
-						int64_t const a = in[i]->get();
-						int64_t const b = in[i]->get();
-						assert ( a >= 0 );
-						assert ( b >= 0 );
 						
-						Q . push ( triple_type(a,b,i) );
+						::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type tini(
+							new ::libmaus::aio::SynchronousGenericInput<uint64_t>(
+								tmpfilename,16*1024,2*i*elnum,
+								rwords
+							) 
+						);
+						
+						in[i] = UNIQUE_PTR_MOVE(tini);
+				
+						uint64_t a = 0, b = 0;
+						bool const aok = in[i]->getNext(a);
+						bool const bok = in[i]->getNext(b);
+						assert ( aok );
+						assert ( bok );
+						
+						triple_type triple(a,b,i);
+						
+						Q . push ( triple );						
 					}
 					
 				
@@ -157,15 +181,21 @@ namespace libmaus
 							SGOfinal.put(Q.top().second);
 
 						uint64_t const id = Q.top().third;
+
+						// std::cerr << Q.top().toString() << std::endl;
 						
 						Q.pop();
 						
 						uint64_t a = 0;
 						if ( in[id]->getNext(a) )
 						{
-							int64_t const b = in[id]->get();
-							assert ( b >= 0 );				
-							Q.push(triple_type(a,b,id));
+							uint64_t b = 0;
+							bool const bok = in[id]->getNext(b);
+							assert ( bok );
+							
+							triple_type triple(a,b,id);
+							
+							Q.push(triple);
 						}
 					}
 					
@@ -210,62 +240,102 @@ namespace libmaus
 				bool const keepfirst,
 				bool const keepsecond,
 				out_type & SGOfinal,
-				uint64_t const bufsize = 256*1024*1024
+				uint64_t const bufsize = 256*1024*1024,
+				bool const 
+				#if defined(_OPENMP)
+					parallel 
+				#endif
+					= false,
+				bool const deleteinput = false
 			)
 			{
 				::std::vector < ::libmaus::aio::FileFragment > frags;
+				uint64_t tlen = 0;
 				for ( uint64_t i = 0; i < filenames.size(); ++i )
 				{
+					// length in elements of size uint64_t
 					uint64_t const len = ::libmaus::util::GetFileSize::getFileSize(filenames[i])/sizeof(uint64_t);
 					::libmaus::aio::FileFragment const frag(filenames[i],0,len);
 					frags.push_back(frag);
+					tlen += len;
 				}
 				
-				assert ( bufsize );
+				assert ( tlen % 2 == 0 );
+				uint64_t const tlen2 = tlen/2;
+
 				uint64_t const elnum = (bufsize + 2*sizeof(uint64_t)-1)/(2*sizeof(uint64_t));
-				::libmaus::autoarray::AutoArray< std::pair<uint64_t,uint64_t> > A(elnum,false);
-				::libmaus::aio::ReorderConcatGenericInput<uint64_t> SGI(frags,16*1024);
-				::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type SGO(
-					new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(tmpfilename,16*1024)
-				);
-				uint64_t fullblocks = 0;
-				uint64_t lastblock = 0;
-				uint64_t numblocks = 0;
-					
-				while ( SGI.peek() >= 0 )
+				uint64_t const numblocks = (tlen2 + elnum-1)/elnum;
+				uint64_t const fullblocks = tlen2/elnum;
+				uint64_t const lastblock = tlen2 - fullblocks*elnum;
+
+				if ( ! libmaus::util::GetFileSize::fileExists(tmpfilename) )
 				{
-					std::pair<uint64_t,uint64_t> * P = A.begin();
-					uint64_t w = 0, v = 0;
-
-					while ( (P != A.end()) && SGI.getNext(w) )
+					assert ( bufsize );
+					::libmaus::autoarray::AutoArray< std::pair<uint64_t,uint64_t> > A(elnum,false);
+					::libmaus::aio::ReorderConcatGenericInput<uint64_t> SGI(frags,16*1024);
+					::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type SGO(
+						new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(tmpfilename,16*1024)
+					);
+					
+					uint64_t dfullblocks = 0;
+					uint64_t dlastblock = 0;
+					uint64_t dnumblocks = 0;
+						
+					while ( SGI.peek() >= 0 )
 					{
-						bool const ok = SGI.getNext(v);
-						assert ( ok );
-						*(P++) = std::pair<uint64_t,uint64_t>(w,v);			
+						std::pair<uint64_t,uint64_t> * P = A.begin();
+						uint64_t w = 0, v = 0;
+
+						while ( (P != A.end()) && SGI.getNext(w) )
+						{
+							bool const ok = SGI.getNext(v);
+							assert ( ok );
+							*(P++) = std::pair<uint64_t,uint64_t>(w,v);			
+						}
+						
+						#if defined(_OPENMP)
+						if ( parallel )
+						{
+							if ( second )
+								__gnu_parallel::sort(A.begin(),P,SecondComp<uint64_t,uint64_t>());
+							else
+								__gnu_parallel::sort(A.begin(),P,FirstComp<uint64_t,uint64_t>());					
+						}
+						else
+						#endif
+						{
+							if ( second )
+								std::sort(A.begin(),P,SecondComp<uint64_t,uint64_t>());
+							else
+								std::sort(A.begin(),P,FirstComp<uint64_t,uint64_t>());
+						}
+						
+						for ( ptrdiff_t i = 0; i < P-A.begin(); ++i )
+						{
+							SGO->put(A[i].first);
+							SGO->put(A[i].second);
+						}
+						
+						if ( P == A.end() )
+							dfullblocks++;
+						else
+							dlastblock = P-A.begin();
+
+						dnumblocks++;
 					}
 					
-					if ( second )
-						std::sort(A.begin(),P,SecondComp<uint64_t,uint64_t>());
-					else
-						std::sort(A.begin(),P,FirstComp<uint64_t,uint64_t>());
-					
-					for ( ptrdiff_t i = 0; i < P-A.begin(); ++i )
-					{
-						SGO->put(A[i].first);
-						SGO->put(A[i].second);
-					}
-					
-					if ( P == A.end() )
-						fullblocks++;
-					else
-						lastblock = P-A.begin();
+					SGO->flush();
+					SGO.reset();
 
-					numblocks++;
+					assert ( dfullblocks == fullblocks );
+					assert ( dlastblock = lastblock );
+					assert ( dnumblocks == numblocks );
 				}
 				
-				SGO->flush();
-				SGO.reset();
-
+				if ( deleteinput )
+					for ( uint64_t i = 0; i < filenames.size(); ++i )
+						remove(filenames[i].c_str());
+				
 				if ( second )
 					mergeTriples< TripleSecondComparator<uint64_t,uint64_t,uint64_t>, out_type >(
 						numblocks,tmpfilename,elnum,lastblock,
@@ -283,12 +353,14 @@ namespace libmaus
 				bool const keepfirst,
 				bool const keepsecond,
 				std::string const & outfilename,
-				uint64_t const bufsize = 256*1024*1024
+				uint64_t const bufsize = 256*1024*1024,
+				bool const parallel = false,
+				bool const deleteinput = false
 			)
 			{
 				typedef ::libmaus::aio::SynchronousGenericOutput<uint64_t> out_type;
 				out_type SGOfinal(outfilename,16*1024);
-				sortPairFileTemplate(filenames,tmpfilename,second,keepfirst,keepsecond,SGOfinal,bufsize);
+				sortPairFileTemplate<out_type>(filenames,tmpfilename,second,keepfirst,keepsecond,SGOfinal,bufsize,parallel,deleteinput);
 			}
 
 			static void sortPairFile(
@@ -298,12 +370,14 @@ namespace libmaus
 				bool const keepfirst,
 				bool const keepsecond,
 				std::ostream & outstream,
-				uint64_t const bufsize = 256*1024*1024
+				uint64_t const bufsize = 256*1024*1024,
+				bool const parallel = false,
+				bool const deleteinput = false
 			)
 			{
 				typedef ::libmaus::aio::SynchronousGenericOutput<uint64_t> out_type;
 				out_type SGOfinal(outstream,16*1024);
-				sortPairFileTemplate(filenames,tmpfilename,second,keepfirst,keepsecond,SGOfinal,bufsize);
+				sortPairFileTemplate<out_type>(filenames,tmpfilename,second,keepfirst,keepsecond,SGOfinal,bufsize,parallel,deleteinput);
 			}
 		};
 	}

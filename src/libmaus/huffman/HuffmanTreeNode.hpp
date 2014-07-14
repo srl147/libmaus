@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HUFFMANTREENODE_HPP)
 #define HUFFMANTREENODE_HPP
@@ -51,6 +51,7 @@ namespace libmaus
                         virtual void depthVector(::std::vector < uint64_t > & B, uint64_t depth = 0) const = 0;
                         virtual uint64_t depth() const = 0;
                         virtual void symbolDepthVector(::std::vector < std::pair < int64_t, uint64_t > > & B, uint64_t depth = 0) const = 0;
+                        virtual uint64_t byteSize() const = 0;
 
 			virtual void addPrefix(uint64_t prefix, uint64_t shift) = 0;
 			

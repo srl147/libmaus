@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(INFLATE_HPP)
 #define INFLATE_HPP
@@ -50,6 +50,21 @@ namespace libmaus
 			uint64_t outbuffill;
 			uint8_t const * op;
 			int ret;
+
+			void zreset()
+			{
+				if ( (ret=inflateReset(&strm)) != Z_OK )
+				{
+					::libmaus::exception::LibMausException se;
+					se.getStream() << "Inflate::zreset(): inflateReset failed";
+					se.finish();
+					throw se;									
+				}
+				
+				ret = Z_OK;
+				outbuffill = 0;
+				op = 0;
+			}
 						
 			void init(int windowSizeLog)
 			{
@@ -417,7 +432,8 @@ namespace libmaus
 				if ( fileptr < sizevec.size() )
 				{
 					assert ( offset < sizevec[fileptr] );
-					BI = UNIQUE_PTR_MOVE(BlockInflate::unique_ptr_type(new BlockInflate(filenames[fileptr],offset)));
+					BlockInflate::unique_ptr_type tBI(new BlockInflate(filenames[fileptr],offset));
+					BI = UNIQUE_PTR_MOVE(tBI);
 					// BI->ignore(offset);
 				}
 				else
@@ -509,7 +525,10 @@ namespace libmaus
 						fileptr++;
 						BI.reset();
 						if ( fileptr < filenames.size() )
-							BI = UNIQUE_PTR_MOVE(BlockInflate::unique_ptr_type(new BlockInflate(filenames[fileptr])));
+						{
+							BlockInflate::unique_ptr_type tBI(new BlockInflate(filenames[fileptr]));
+							BI = UNIQUE_PTR_MOVE(tBI);
+						}
 					}
 				}
 				

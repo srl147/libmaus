@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(GAPENCODER_HPP)
 #define GAPENCODER_HPP
@@ -53,9 +53,15 @@ namespace libmaus
 				// std::cerr << "need escape: " << needescape << std::endl;
 			
 				if ( needescape )
-					GECE = UNIQUE_PTR_MOVE(::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::EscapeCanonicalEncoder(gaphist.getFreqSymVector())));
+				{
+					::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type tGECE(new ::libmaus::huffman::EscapeCanonicalEncoder(gaphist.getFreqSymVector()));
+					GECE = UNIQUE_PTR_MOVE(tGECE);
+				}
 				else
-					GCE = UNIQUE_PTR_MOVE(::libmaus::huffman::CanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::CanonicalEncoder(gaphist.getByType<int64_t>())));
+				{
+					::libmaus::huffman::CanonicalEncoder::unique_ptr_type tGCE(new ::libmaus::huffman::CanonicalEncoder(gaphist.getByType<int64_t>()));
+					GCE = UNIQUE_PTR_MOVE(tGCE);
+				}
 
 				gapHEF.writeBit(needescape);
 				gapHEF.writeElias2(numentries);
@@ -130,9 +136,8 @@ namespace libmaus
 			}
 
 			template<typename iterator, typename encoder_type>
-			void encode(iterator a, iterator e, encoder_type * encoder)
+			void encode(iterator ita, uint64_t const n, encoder_type * encoder)
 			{
-				uint64_t const n = e-a;
 				uint64_t const blocksize = 32*1024;
 				uint64_t const blocks = (n + blocksize-1)/blocksize;
 				
@@ -150,7 +155,7 @@ namespace libmaus
 					uint64_t sum = 0;
 					for ( uint64_t i = 0; i < bsize; ++i )
 					{
-						uint64_t const v = a[blow+i];
+						uint64_t const v = *(ita++);
 						encoder->encode(gapHEF,v);
 						sum += v;
 					}
@@ -163,9 +168,8 @@ namespace libmaus
 			}
 
 			template<typename iterator, typename encoder_type>
-			void encodeFast(iterator a, iterator e, encoder_type * encoder)
+			void encodeFast(iterator ita, uint64_t const n, encoder_type * encoder)
 			{
-				uint64_t const n = e-a;
 				uint64_t const blocksize = 32*1024;
 				uint64_t const blocks = (n + blocksize-1)/blocksize;
 				
@@ -183,7 +187,7 @@ namespace libmaus
 					uint64_t sum = 0;
 					for ( uint64_t i = 0; i < bsize; ++i )
 					{
-						uint64_t const v = a[blow+i];
+						uint64_t const v = *(ita++);
 						encoder->encodeFast(gapHEF,v);
 						sum += v;
 					}
@@ -195,18 +199,26 @@ namespace libmaus
 			}
 
 			template<typename iterator>
-			void encodeInternal(iterator a, iterator e)
+			void encodeInternal(iterator ita, uint64_t const n)
 			{
 				if ( needescape )
-					encode(a,e,GECE.get());
+					encode(ita,n,GECE.get());
 				else
-					encodeFast(a,e,GCE.get());
+					encodeFast(ita,n,GCE.get());
 			}
 
 			template<typename iterator>
-			void encode(iterator a, iterator e)
+			void encode(iterator ita, iterator ite)
 			{
-				encodeInternal(a,e);
+				encodeInternal(ita,ite-ita);
+				writeIndex();
+				flush();
+			}
+
+			template<typename iterator>
+			void encode(iterator ita, uint64_t const n)
+			{
+				encodeInternal(ita,n);
 				writeIndex();
 				flush();
 			}
@@ -243,7 +255,8 @@ namespace libmaus
 						for ( uint64_t j = 0; j < infilenames[i].size(); ++j )
 							assert ( ::libmaus::util::GetFileSize::fileExists(infilenames[i][j]) );
 						
-						decoders[i] = UNIQUE_PTR_MOVE(decoder_ptr_type(new decoder_type(infilenames[i])));
+						decoder_ptr_type tdecodersi(new decoder_type(infilenames[i]));
+						decoders[i] = UNIQUE_PTR_MOVE(tdecodersi);
 					}
 
 					// compute histogram for output
@@ -262,7 +275,10 @@ namespace libmaus
 
 					// set up decoders
 					for ( uint64_t i = 0; i < infilenames.size(); ++i )
-						decoders[i] = UNIQUE_PTR_MOVE(decoder_ptr_type(new decoder_type(infilenames[i])));
+					{
+						decoder_ptr_type tdecodersi(new decoder_type(infilenames[i]));
+						decoders[i] = UNIQUE_PTR_MOVE(tdecodersi);
+					}
 					
 					uint64_t const bs = 32*1024;
 					uint64_t const blocks = ( n + bs - 1 ) / bs;
@@ -289,7 +305,7 @@ namespace libmaus
 							std::cerr << "maxval = " << maxval << std::endl;
 						#endif
 								
-						enc.encodeInternal(B.begin(),B.begin() + blen);
+						enc.encodeInternal(B.begin(),blen /*B.begin() + blen*/);
 					}
 	
 					enc.writeIndex();
@@ -303,7 +319,10 @@ namespace libmaus
 						std::cerr << "Checking merged...";
 						// set up decoders
 						for ( uint64_t i = 0; i < infilenames.size(); ++i )
-							decoders[i] = UNIQUE_PTR_MOVE(decoder_ptr_type(new decoder_type(infilenames[i])));
+						{
+							decoder_ptr_type tdecodersi(new decoder_type(infilenames[i]));
+							decoders[i] = UNIQUE_PTR_MOVE(tdecodersi);
+						}
 						GapDecoder wdec(std::vector<std::string>(1,outfilename));
 						
 						for ( uint64_t i = 0; i < n; ++i )

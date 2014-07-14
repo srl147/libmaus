@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HUFFMANSORTING_HPP)
 #define HUFFMANSORTING_HPP
@@ -375,9 +375,9 @@ namespace libmaus
 
 			template<unsigned int words>
 			static void printDecoded(
-				huffman::EncodeTable<words> const & enctable,
+				huffman::EncodeTable<words> const & /* enctable */,
 				huffman::DecodeTable const & dectable,
-				::std::string const & s,
+				::std::string const & /* s */,
 				uint64_t const n,
 				uint64_t const * const acode,
 				uint64_t const codelength

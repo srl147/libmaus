@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_SUFFIXSORT_CIRCULARSUFFIXCOMPARATOR_HPP)
 #define LIBMAUS_SUFFIXSORT_CIRCULARSUFFIXCOMPARATOR_HPP
 
@@ -36,7 +36,8 @@ namespace libmaus
 			
 			static wrapper_ptr_type construct(std::string const & filename, uint64_t const offset)
 			{
-				return UNIQUE_PTR_MOVE(wrapper_ptr_type(new wrapper_type(filename,offset)));
+				wrapper_ptr_type tptr(new wrapper_type(filename,offset));
+				return UNIQUE_PTR_MOVE(tptr);
 			}
 		};
 
@@ -71,6 +72,20 @@ namespace libmaus
 		struct PacTermDecoderWrapperFactory
 		{
 			typedef ::libmaus::aio::PacTermCircularWrapper wrapper_type;
+			typedef wrapper_type::unique_ptr_type wrapper_ptr_type;
+			typedef ::std::istream base_istream_type;
+			typedef base_istream_type::int_type int_type;
+				
+			static wrapper_ptr_type construct(std::string const & filename, uint64_t const offset)
+			{
+				wrapper_ptr_type W(new wrapper_type(filename,offset));
+				return UNIQUE_PTR_MOVE(W);
+			}
+		};
+
+		struct Lz4DecoderWrapperFactory
+		{
+			typedef ::libmaus::aio::Lz4CircularWrapper wrapper_type;
 			typedef wrapper_type::unique_ptr_type wrapper_ptr_type;
 			typedef ::std::istream base_istream_type;
 			typedef base_istream_type::int_type int_type;
@@ -123,8 +138,8 @@ namespace libmaus
 				if ( pa == pb )
 					return false;
 				
-				typename factory_type::wrapper_ptr_type cwa = UNIQUE_PTR_MOVE(factory_type::construct(filename,pa));
-				typename factory_type::wrapper_ptr_type cwb = UNIQUE_PTR_MOVE(factory_type::construct(filename,pb));
+				typename factory_type::wrapper_ptr_type cwa(factory_type::construct(filename,pa));
+				typename factory_type::wrapper_ptr_type cwb(factory_type::construct(filename,pb));
 			
 				for ( uint64_t i = 0; i < fs; ++i )
 				{
@@ -147,7 +162,7 @@ namespace libmaus
 				assert ( fs );
 				pb %= fs;
 				
-				typename factory_type::wrapper_ptr_type cwb = UNIQUE_PTR_MOVE(factory_type::construct(filename,pb));
+				typename factory_type::wrapper_ptr_type cwb(factory_type::construct(filename,pb));
 				
 				while ( texta != texte )
 				{
@@ -266,6 +281,7 @@ namespace libmaus
 		typedef CircularSuffixComparatorTemplate<CompactDecoderWrapperFactory> CompactCircularSuffixComparator;
 		typedef CircularSuffixComparatorTemplate<PacDecoderWrapperFactory> PacCircularSuffixComparator;
 		typedef CircularSuffixComparatorTemplate<PacTermDecoderWrapperFactory> PacTermCircularSuffixComparator;
+		typedef CircularSuffixComparatorTemplate<Lz4DecoderWrapperFactory> Lz4CircularSuffixComparator;
 		typedef CircularSuffixComparatorTemplate<Utf8DecoderWrapperFactory> Utf8CircularSuffixComparator;
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HUFFMANTREELEAF_HPP)
 #define HUFFMANTREELEAF_HPP
@@ -34,6 +34,11 @@ namespace libmaus
 
                         HuffmanTreeLeaf(int64_t rsymbol, uint64_t rfrequency) : symbol(rsymbol), frequency(rfrequency) {}
                         ~HuffmanTreeLeaf() {}
+                        
+                        uint64_t byteSize() const
+                        {
+                        	return sizeof(int64_t)+sizeof(uint64_t);
+                        }
                                 
                         bool isLeaf() const { return true; }
                         uint64_t getFrequency() const {

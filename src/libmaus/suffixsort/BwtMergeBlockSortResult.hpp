@@ -1,5 +1,5 @@
 /**
-    suds
+    libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
 
@@ -28,53 +28,59 @@ namespace libmaus
 	{
 		struct BwtMergeBlockSortResult
 		{
+			private:
 			uint64_t blockp0rank;
-			std::vector < ::libmaus::suffixsort::BwtMergeZBlock > zblocks;
+			libmaus::autoarray::AutoArray < ::libmaus::suffixsort::BwtMergeZBlock > zblocks;
 			
 			uint64_t blockstart;
 			uint64_t cblocksize;
 			
 			::libmaus::suffixsort::BwtMergeTempFileNameSet files;
 
+			public:
 			BwtMergeBlockSortResult()
 			: blockp0rank(0), zblocks(), blockstart(0), cblocksize(0), files()
 			{
 			
 			}
 			
-			static std::vector < ::libmaus::suffixsort::BwtMergeZBlock > mergeZBlockVectors(std::vector<BwtMergeBlockSortResult> const & V)
+			BwtMergeBlockSortResult(BwtMergeBlockSortResult const & o)
+			: blockp0rank(o.blockp0rank), zblocks(o.zblocks.clone()), blockstart(o.blockstart), cblocksize(o.cblocksize), files(o.files)
 			{
-				std::vector < std::vector< ::libmaus::suffixsort::BwtMergeZBlock >::const_iterator > VIT;
-				bool running = V.size() != 0;
-				for ( uint64_t i = 0; i < V.size(); ++i )
-				{
-					VIT.push_back(V[i].zblocks.begin());
-					running = running && (VIT.back() != V[i].zblocks.end() );
-				}
-					
-				std::vector < ::libmaus::suffixsort::BwtMergeZBlock > R;
-				
-				while ( running )
-				{
-					uint64_t acc = 0;
-					for ( uint64_t i = 0; i < VIT.size(); ++i )
-					{
-						assert ( VIT[i] != V[i].zblocks.end() );
-						assert ( VIT[i]->zabspos == VIT[0]->zabspos );
-						acc += VIT[i]->zrank;
-					}
-					
-					uint64_t const zabspos = VIT[0]->zabspos;
-					
-					R.push_back(::libmaus::suffixsort::BwtMergeZBlock(zabspos,acc));
-
-					for ( uint64_t i = 0; i < VIT.size(); ++i )
-						if ( ++VIT[i] == V[i].zblocks.end() )
-							running = false;
-				}
-						
-				return R;
+			
 			}
+			
+			BwtMergeBlockSortResult & operator=(BwtMergeBlockSortResult const & o)
+			{
+				if ( this != &o )
+				{
+					blockp0rank = o.blockp0rank;
+					zblocks = o.zblocks.clone();
+					blockstart = o.blockstart;
+					cblocksize = o.cblocksize;
+					files = o.files;
+				}
+				return *this;
+			}
+			
+			uint64_t getBlockP0Rank() const { return blockp0rank; }
+			uint64_t getBlockStart() const { return blockstart; }
+			uint64_t getCBlockSize() const { return cblocksize; }
+			void setBlockP0Rank(uint64_t const rblockp0rank) { blockp0rank = rblockp0rank; }
+			void setBlockStart(uint64_t const rblockstart) { blockstart = rblockstart; }
+			void setCBlockSize(uint64_t const rcblocksize) { cblocksize = rcblocksize; }
+			void setBWT(std::vector<std::string> const & bwt) { files.setBWT(bwt); }
+			void setGT(std::vector<std::string> const & gt) { files.setGT(gt); }
+			::libmaus::suffixsort::BwtMergeTempFileNameSet const & getFiles() const { return files; }
+			void removeFiles() const { files.removeFiles(); }
+			void removeFilesButBwt() const { files.removeFilesButBwt(); }
+			void removeFilesButBwtAndGt() const { files.removeFilesButBwtAndGt(); }
+			void setTempPrefixAndRegisterAsTemp(std::string const & prefix, uint64_t const numbwt, uint64_t const numgt) 
+			{ files.setPrefixAndRegisterAsTemp(prefix,numbwt,numgt); }
+			libmaus::autoarray::AutoArray < ::libmaus::suffixsort::BwtMergeZBlock > const & getZBlocks() const { return zblocks; }
+			void resizeZBlocks(uint64_t const n) { zblocks.resize(n); }
+			void setZBlock(uint64_t const i, ::libmaus::suffixsort::BwtMergeZBlock const & z) { zblocks.at(i) = z; }
+			void setTempFileSet(::libmaus::suffixsort::BwtMergeTempFileNameSet const & rfiles) { files = rfiles; }
 			
 			BwtMergeBlockSortResult(std::istream & stream)
 			{
@@ -119,3 +125,4 @@ namespace libmaus
 	}
 }
 #endif
+

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,14 +15,14 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/SimpleBloomFilter.hpp>
 
 void testSimpleBloomCollisions()
 {
 	uint64_t const n = 500ull*1000ull*1000ull;
-	::libmaus::util::SimpleBloomFilter::unique_ptr_type SBF = UNIQUE_PTR_MOVE(::libmaus::util::SimpleBloomFilter::construct(n,0.1)); //(16,28 /* log */);
+	::libmaus::util::SimpleBloomFilter::unique_ptr_type SBF(::libmaus::util::SimpleBloomFilter::construct(n,0.1)); //(16,28 /* log */);
 
 	uint64_t col = 0;	
 	for ( uint64_t i = 0; i < 16*1024; ++i )

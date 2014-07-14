@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_BAMFORMATAUXILIARY_HPP)
 #define LIBMAUS_BAMBAM_BAMFORMATAUXILIARY_HPP
 
@@ -25,9 +25,14 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * auxiliary class for formatting BAM to other formats
+		 **/
 		struct BamFormatAuxiliary
 		{
+			//! for recoding sequence data
 			::libmaus::autoarray::AutoArray<char> seq;
+			//! for recoding quality data
 			::libmaus::autoarray::AutoArray<char> qual;		
 		};
 	}

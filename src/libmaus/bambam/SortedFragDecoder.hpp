@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_SORTEDFRAGDECODER_HPP)
 #define LIBMAUS_BAMBAM_SORTEDFRAGDECODER_HPP
 
@@ -23,27 +23,45 @@
 #include <libmaus/bambam/ReadEndsHeapPairComparator.hpp>
 #include <libmaus/util/unique_ptr.hpp>
 #include <libmaus/util/shared_ptr.hpp>
-#include <libmaus/lz/SnappyCompress.hpp>
+#include <libmaus/lz/SnappyInputStreamArrayFile.hpp>
 #include <queue>
 
 namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * sorted fragment list decoder
+		 **/
 		struct SortedFragDecoder
 		{
+			//! this type
 			typedef SortedFragDecoder this_type;
+			//! unique pointer type
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			//! shared pointer type
 			typedef ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
 
+			private:
+			//! uint64_t pair
 			typedef std::pair<uint64_t,uint64_t> upair;
-
+			//! snappy input array
 			::libmaus::lz::SnappyInputStreamArrayFile::unique_ptr_type infilearray;
+			//! number of alignments per block
 			std::vector < uint64_t > const tmpoutcnts;
+			//! number of alignments read per block
 			std::vector < uint64_t > tmpincnts;
+			//! pair of list index and ReadEnds object
 			typedef std::pair<uint64_t,::libmaus::bambam::ReadEnds> qtype;
+			//! merge heap
 			std::priority_queue<qtype,std::vector<qtype>,::libmaus::bambam::ReadEndsHeapPairComparator> Q;
 			
+			/**
+			 * convert vector of pairs [u_0,u_1),[u_1,u_2),... to index vector [u_0,u_1,u_2,...)
+			 *
+			 * @param tmpoffsetintervals pair vector
+			 * @return index vector
+			 **/
 			static std::vector < uint64_t > pairsToIntervals(std::vector < upair > const & tmpoffsetintervals)
 			{
 				if ( ! tmpoffsetintervals.size() )
@@ -60,15 +78,32 @@ namespace libmaus
 				}
 			}
 
+			public:
+			/**
+			 * construct decoder
+			 *
+			 * @param filename input file name
+			 * @param tmpoffsetintervals block index
+			 * @param rtmpoutcnts number of ReadEnds object per block
+			 * @return decoder object
+			 **/
 			static unique_ptr_type construct(
 				std::string const & filename,
 				std::vector < upair > const & tmpoffsetintervals,
 				std::vector < uint64_t > const & rtmpoutcnts		
 			)
 			{
-				return UNIQUE_PTR_MOVE(unique_ptr_type(new this_type(filename,tmpoffsetintervals,rtmpoutcnts)));
+				unique_ptr_type ptr(new this_type(filename,tmpoffsetintervals,rtmpoutcnts));
+				return UNIQUE_PTR_MOVE(ptr);
 			}
 			
+			/**
+			 * constructor
+			 *
+			 * @param filename input file name
+			 * @param tmpoffsetintervals block index
+			 * @param rtmpoutcnts number of ReadEnds object per block
+			 **/
 			SortedFragDecoder(
 				std::string const & filename,
 				std::vector < upair > const & tmpoffsetintervals,
@@ -78,6 +113,8 @@ namespace libmaus
 			  tmpoutcnts(rtmpoutcnts),
 			  tmpincnts(tmpoutcnts.size(),0)
 			{
+				infilearray->setEofThrow(true);
+				
 				for ( uint64_t i = 0; i < tmpoffsetintervals.size(); ++i )
 					if ( tmpincnts[i] != tmpoutcnts[i] )
 					{
@@ -88,6 +125,12 @@ namespace libmaus
 					}
 			}
 			
+			/**
+			 * get next ReadEnds object and append it to V if one is available
+			 *
+			 * @param V vector of ReadEnds objects
+			 * @return true iff an object was appended to V, false if no more objects were available
+			 **/
 			bool getNext(std::vector< ::libmaus::bambam::ReadEnds> & V)
 			{
 				::libmaus::bambam::ReadEnds RE;
@@ -99,6 +142,12 @@ namespace libmaus
 				return ok;
 			}
 			
+			/**
+			 * get next ReadEnds object
+			 *
+			 * @param RE reference to ReadEnds object to be filled
+			 * @return true iff an object could be decoded, false if no more objects were available
+			 **/
 			bool getNext(::libmaus::bambam::ReadEnds & RE)
 			{
 				if ( Q.size() )

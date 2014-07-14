@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(IMPCACHELINERANK_HPP)
 #define IMPCACHELINERANK_HPP
@@ -46,15 +46,20 @@ namespace libmaus
 			uint64_t const numblocks;
 			::libmaus::autoarray::AutoArray<uint64_t, ::libmaus::autoarray::alloc_type_memalign_cacheline> A;
 
+			#define LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS
+			#if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
 			ImpCacheLineRank * left;
 			ImpCacheLineRank * right;
 			ImpCacheLineRank * parent;
+			#endif
 			
 			uint64_t byteSize() const
 			{
 				return 
 					4*sizeof(uint64_t)+
+					#if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
 					3*sizeof(ImpCacheLineRank *)+
+					#endif
 					A.byteSize();
 			}
 			
@@ -71,6 +76,11 @@ namespace libmaus
 				socket->writeSingle<uint64_t>(n);
 				socket->writeMessageInBlocks<uint64_t,::libmaus::autoarray::alloc_type_memalign_cacheline>(A);
 			}
+			
+			uint64_t serialisedSize() const
+			{
+				return sizeof(uint64_t) + A.serialisedSize();
+			}
 
 			uint64_t deserialiseNumber(std::istream & in)
 			{
@@ -82,14 +92,19 @@ namespace libmaus
 			ImpCacheLineRank(uint64_t const rn)
 			: n(rn), datawords( (n+63)/64 ), indexwords( 2 * ((datawords+5)/6) ),
 			  numblocks( (n+bitsperblock-1)/bitsperblock ),
-			  A (datawords+indexwords,false), left(0), right(0), parent(0)
+			  A (datawords+indexwords,false)
+			  #if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
+			  , left(0), right(0), parent(0)
+			  #endif
 			{}
 
 			ImpCacheLineRank(::libmaus::network::SocketBase * in)
 			: n(in->readSingle<uint64_t>()), datawords( (n+63)/64 ), indexwords( 2 * ((datawords+5)/6) ), 
 			  numblocks( (n+bitsperblock-1)/bitsperblock ),
-			  A(in->readMessageInBlocks<uint64_t,::libmaus::autoarray::alloc_type_memalign_cacheline>()), 
-			  left(0), right(0), parent(0)
+			  A(in->readMessageInBlocks<uint64_t,::libmaus::autoarray::alloc_type_memalign_cacheline>())
+			  #if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
+			  , left(0), right(0), parent(0)
+			  #endif
 			{
 			
 			}
@@ -97,7 +112,10 @@ namespace libmaus
 			ImpCacheLineRank(std::istream & in)
 			: n(deserialiseNumber(in)), datawords( (n+63)/64 ), indexwords( 2 * ((datawords+5)/6) ), 
 			  numblocks( (n+bitsperblock-1)/bitsperblock ),
-			  A(in), left(0), right(0), parent(0)
+			  A(in)
+			  #if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
+			  , left(0), right(0), parent(0)
+			  #endif
 			{
 			
 			}
@@ -105,7 +123,10 @@ namespace libmaus
 			ImpCacheLineRank(std::istream & in, uint64_t & s)
 			: n(deserialiseNumber(in)), datawords( (n+63)/64 ), indexwords( 2 * ((datawords+5)/6) ), 
 			  numblocks( (n+bitsperblock-1)/bitsperblock ),
-			  A(in,s), left(0), right(0), parent(0)
+			  A(in,s)
+			  #if defined(LIBMAUS_RANK_IMPCACHELINERANK_STORENODEPOINTERS)
+			  , left(0), right(0), parent(0)
+			  #endif
 			{
 				s += sizeof(uint64_t);
 			}
@@ -191,11 +212,13 @@ namespace libmaus
 				
 				static unique_ptr_type construct(std::string const & filename, uint64_t const n, bool const writeHeader = true)
 				{
-					return UNIQUE_PTR_MOVE(unique_ptr_type(new this_type(filename,n,writeHeader)));
+					unique_ptr_type ptr(new this_type(filename,n,writeHeader));
+					return UNIQUE_PTR_MOVE(ptr);
 				}
 				static unique_ptr_type construct(std::ostream & out, uint64_t const n, bool const writeHeader = true)
 				{
-					return UNIQUE_PTR_MOVE(unique_ptr_type(new this_type(out,n,writeHeader)));
+					unique_ptr_type ptr(new this_type(out,n,writeHeader));
+					return UNIQUE_PTR_MOVE(ptr);
 				}
 			
 				uint64_t bitpos;
@@ -212,6 +235,40 @@ namespace libmaus
 				
 				uint64_t blockswritten;
 				
+				void fillHeader()
+				{
+					fillHeader(blockswritten * 6 * 64);
+				}
+				
+				void fillHeader(uint64_t const n)
+				{
+					ostr.seekp(0,std::ios::beg);
+
+					uint64_t const words = ((((n+63)/64)+5)/6)*8;
+					// write n
+					::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,n);
+					// write auto array header
+					::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,words);					
+				}
+				
+				WriteContextExternal(std::string const & filename)
+				: bitpos(0), w(0), s(0), 
+				  B(8), p(B.begin()), ps(p),
+				  Postr(new std::ofstream(filename.c_str(),std::ios::binary)),
+				  ostr(*Postr),
+				  blockswritten(0)
+				{
+					// space for n
+					::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,0);
+					// space for auto array header
+					::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,0);
+
+					// instantiate output buffer
+					::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type tout(
+                                                new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(ostr,64*1024));
+					out = UNIQUE_PTR_MOVE(tout);
+				}
+
 				WriteContextExternal(std::string const & filename, uint64_t const n, bool const writeHeader = true)
 				: bitpos(0), w(0), s(0), 
 				  B(8), p(B.begin()), ps(p),
@@ -228,8 +285,9 @@ namespace libmaus
 						::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,words);
 					}
 					// instantiate output buffer
-					out = UNIQUE_PTR_MOVE(::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type(
-						new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(ostr,64*1024)));
+					::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type tout(
+                                                new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(ostr,64*1024));
+					out = UNIQUE_PTR_MOVE(tout);
 				}
 
 				WriteContextExternal(std::ostream & rostr, uint64_t const n, bool const writeHeader = true)
@@ -247,12 +305,39 @@ namespace libmaus
 						::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,words);
 					}
 					// instantiate output buffer
-					out = UNIQUE_PTR_MOVE(::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type(
-						new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(ostr,64*1024)));
+					::libmaus::aio::SynchronousGenericOutput<uint64_t>::unique_ptr_type tout(
+                                                new ::libmaus::aio::SynchronousGenericOutput<uint64_t>(ostr,64*1024));
+					out = UNIQUE_PTR_MOVE(tout);
 				}
 				~WriteContextExternal()
 				{
 					flush();
+				}
+				
+				void reset()
+				{
+					bitpos = 0;
+					w = 0;
+					s = 0;
+					p = B.begin();
+					ps = p;
+					blockswritten = 0;
+				}
+				
+				void reinit(uint64_t const n, bool const writeHeader = true)
+				{
+					shallowFlush();
+					
+					reset();
+
+					if ( writeHeader )
+					{
+						uint64_t const words = ((((n+63)/64)+5)/6)*8;
+						// write n
+						::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,n);
+						// write auto array header
+						::libmaus::serialize::Serialize<uint64_t>::serialize(ostr,words);
+					}
 				}
 				
 				void writeBit(bool const rb)
@@ -297,6 +382,13 @@ namespace libmaus
 						writeBit(0);
 					out->flush();
 					ostr.flush();
+				}
+				void shallowFlush()
+				{
+					// finish word
+					while ( bitpos )
+						writeBit(0);
+					out->shallowFlush();
 				}
 				uint64_t wordsWritten() const
 				{

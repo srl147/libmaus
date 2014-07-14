@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(EDGELIST_HPP)
 #define EDGELIST_HPP
@@ -35,8 +35,8 @@ namespace libmaus
 		struct EdgeListBase
 		{
 			typedef uint32_t edge_count_type;
-			typedef uint32_t edge_target_type;
-			typedef uint8_t edge_weight_type;
+			typedef uint64_t edge_target_type;
+			typedef uint16_t edge_weight_type;
 			
 			static unsigned int const maxweight;
 			static edge_target_type const edge_list_term;
@@ -232,7 +232,7 @@ namespace libmaus
 			static void receiveSocket(				
 				::libmaus::network::SocketBase * const socket,
 				std::string const & filename,
-				bool const append
+				bool const /* append */
 				)
 			{
 				::libmaus::aio::SynchronousGenericOutput<type> out(filename,8*1024);
@@ -296,7 +296,7 @@ namespace libmaus
 
 			void writeEdgeWeights(std::string const & filename) const
 			{
-				::libmaus::aio::SynchronousGenericOutput<unsigned char> out(filename,8*1024);
+				::libmaus::aio::SynchronousGenericOutput<edge_weight_type> out(filename,8*1024);
 				writeEdgeWeightStream(out);
 			}
 
@@ -304,7 +304,7 @@ namespace libmaus
 				::libmaus::network::SocketBase * const socket
 			)
 			{
-				::libmaus::network::SocketOutputBuffer<unsigned char> SOB(socket,64*1024);
+				::libmaus::network::SocketOutputBuffer<edge_weight_type> SOB(socket,64*1024);
 				writeEdgeWeightStream(SOB);
 				socket->writeMessage<uint64_t>(1,0,0);
 			}
@@ -421,6 +421,28 @@ namespace libmaus
 					
 					for ( uint64_t j = 0; j < maxedges && p[j] != edge_list_term; ++j )
 						out << (i+edgelow) << "," << p[j] << "," << static_cast<int>(w[j]) << std::endl;
+				}
+			}
+
+			void printHex(std::ostream & out) const
+			{
+				for ( uint64_t i = 0; i < edgehigh-edgelow; ++i )
+				{
+					edge_target_type const * p = edges.get() + i * maxedges;
+					edge_weight_type const * w = weights.get() + i*maxedges;
+					
+					for ( uint64_t j = 0; j < maxedges && p[j] != edge_list_term; ++j )
+						out 
+							<< std::hex << std::setw(16) << std::setfill('0')
+							<< (i+edgelow) 
+							<< std::setw(0)
+							<< "," 
+							<< std::hex << std::setw(16) << std::setfill('0')
+							<< p[j] 
+							<< std::setw(0)
+							<< "," 
+							<< static_cast<int>(w[j]) 
+							<< std::endl;
 				}
 			}
 		};

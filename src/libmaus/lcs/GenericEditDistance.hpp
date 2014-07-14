@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if !defined(GENERICEDITDISTANCE_HPP)
 #define GENERICEDITDISTANCE_HPP
@@ -103,7 +103,7 @@ namespace libmaus
 				element_type * q = M.begin();
 				
 				// fill dynamic programming matrix
-				iterator_b const ba = b;
+				// iterator_b const ba = b;
 				iterator_b const be = b+m;
 				iterator_a const ae = a+n;
 				while ( b != be )
@@ -192,8 +192,7 @@ namespace libmaus
 				}
 
 				return EditDistanceResult(numin,numdel,nummat,nummis);
-			}
-			
+			}	
 		};
 		
 		struct BandedEditDistance : public GenericTraceContainer

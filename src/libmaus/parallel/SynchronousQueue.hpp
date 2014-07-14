@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(SYNCHRONOUSQUEUE_HPP)
 #define SYNCHRONOUSQUEUE_HPP
@@ -24,6 +24,7 @@
 
 #if defined(LIBMAUS_HAVE_PTHREADS)
 #include <libmaus/parallel/PosixMutex.hpp>
+#include <libmaus/parallel/PosixSpinLock.hpp>
 #include <libmaus/parallel/PosixSemaphore.hpp>
 #include <deque>
 
@@ -31,12 +32,33 @@ namespace libmaus
 {
         namespace parallel
         {
-                template<typename value_type>
+                template<typename _value_type>
                 struct SynchronousQueue
                 {
+                	typedef _value_type value_type;
+                	typedef SynchronousQueue<value_type> this_type;
+                	typedef typename libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+                	
                         std::deque < value_type > Q;
-                        PosixMutex lock;
+                        PosixSpinLock lock;
                         PosixSemaphore semaphore;
+                        
+                        this_type * parent;
+                        
+                        SynchronousQueue() : parent(0)
+                        {
+
+                        }
+                        
+                        virtual ~SynchronousQueue()
+                        {
+                        
+                        }
+
+                        bool empty()
+                        {
+                        	return getFillState() == 0;
+                        }
                         
                         unsigned int getFillState()
                         {
@@ -48,19 +70,40 @@ namespace libmaus
                         
                         void enque(value_type const q)
                         {
-                                lock.lock();
-                                Q.push_back(q);
-                                lock.unlock();
+                        	{
+	                        	libmaus::parallel::ScopePosixSpinLock llock(lock);
+        	                        Q.push_back(q);
+				}
+
                                 semaphore.post();
+                                
+                                if ( parent )
+	                                parent->enque(q);
                         }
-                        value_type deque()
+                        virtual value_type deque()
                         {
                                 semaphore.wait();
-                                lock.lock();
+                                
+                        	libmaus::parallel::ScopePosixSpinLock llock(lock);
                                 value_type const v = Q.front();
                                 Q.pop_front();
-                                lock.unlock();
                                 return v;
+                        }
+                        virtual bool trydeque(value_type & v)
+                        {
+                        	bool const ok = semaphore.trywait();
+                                
+                                if ( ok )
+                                {
+	                        	libmaus::parallel::ScopePosixSpinLock llock(lock);
+	                        	v = Q.front();
+                	                Q.pop_front();
+                	                return true;
+				}
+				else
+				{
+					return false;
+				}
                         }
                         value_type peek()
                         {
@@ -89,7 +132,7 @@ namespace libmaus
                         	if ( ok )
                         		v = Q.front();
 				lock.unlock();
-				return v;
+				return ok;
                         }
                 };
         }

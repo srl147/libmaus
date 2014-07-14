@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,14 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(POSIXMUTEX_HPP)
 #define POSIXMUTEX_HPP
 
 #include <libmaus/LibMausConfig.hpp>
 #include <libmaus/exception/LibMausException.hpp>
+#include <libmaus/util/unique_ptr.hpp>
+#include <libmaus/util/shared_ptr.hpp>
 #include <cerrno>
 
 #if defined(LIBMAUS_HAVE_PTHREADS)
@@ -32,9 +34,13 @@ namespace libmaus
 	{
                 struct PosixMutex
                 {
+                	typedef PosixMutex this_type;
+                	typedef libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+                	typedef libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+                
                         pthread_mutex_t mutex;
                         
-                        PosixMutex()
+                        PosixMutex() : mutex()
                         {
                                 pthread_mutex_init(&mutex,0);
                         }

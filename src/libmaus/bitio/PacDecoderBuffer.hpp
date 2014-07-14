@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_AIO_PACDECODERBUFFER_HPP)
 #define LIBMAUS_AIO_PACDECODERBUFFER_HPP
@@ -115,7 +115,7 @@ namespace libmaus
 					
 					// call relative seek, if target is in range
 					if ( sp >= curlow && sp <= curhigh )
-						return seekoff(sp - cur, ::std::ios_base::cur, which);
+						return seekoff(static_cast<int64_t>(sp) - cur, ::std::ios_base::cur, which);
 
 					// target is out of range, we really need to seek
 					uint64_t tsymsread = (sp / buffersize)*buffersize;
@@ -125,7 +125,7 @@ namespace libmaus
 					stream.seekg( (symsread * b) / 8 );
 					setg(buffer.end(),buffer.end(),buffer.end());
 					underflow();
-					setg(eback(),gptr() + (sp-static_cast<int64_t>(tsymsread)), egptr());
+					setg(eback(),gptr() + (static_cast<int64_t>(sp)-static_cast<int64_t>(tsymsread)), egptr());
 				
 					return sp;
 				}

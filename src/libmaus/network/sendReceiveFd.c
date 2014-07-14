@@ -16,9 +16,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
+#include <libmaus/LibMausConfig.hpp>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <stdio.h>
 
 extern int libmaus_network_sendFd_C(int const socket, int const fd);
 extern int libmaus_network_receiveFd_C(int const socket);
@@ -31,7 +34,7 @@ int libmaus_network_sendFd_C(int const socket, int const fd)
 	struct msghdr hdr;
 	struct cmsghdr *chdr;
 	unsigned char * cdata;
-	size_t i;
+	/* size_t i; */
 
 	/* erase structures */
 	memset(&hdr, 0, sizeof(struct msghdr));
@@ -56,8 +59,6 @@ int libmaus_network_sendFd_C(int const socket, int const fd)
 	return sendmsg(socket, &hdr, 0);
 }
 
-#include <stdio.h>
-
 int libmaus_network_receiveFd_C(int const socket)
 {
 	char message[1];
@@ -65,10 +66,10 @@ int libmaus_network_receiveFd_C(int const socket)
 	struct msghdr hdr;
 	struct cmsghdr *chdr;
 	char ancillary[CMSG_SPACE(sizeof(int))];
-	#if defined(__APPLE__) || defined(__FreeBSD__)
-	int const recflags = 0;
-	#else
+	#if defined(LIBMAUS_HAVE_MSG_CMSG_CLOEXEC)
 	int const recflags = MSG_CMSG_CLOEXEC;
+	#else
+	int const recflags = 0;
 	#endif
 
 	/* initialize structures */
@@ -87,7 +88,7 @@ int libmaus_network_receiveFd_C(int const socket)
 		/* check type of data (should not be necessary...) */
 		if( (chdr->cmsg_level == SOL_SOCKET) && (chdr->cmsg_type == SCM_RIGHTS) )
 		{
-			size_t i;
+			/* size_t i; */
 			int fd;
 			unsigned char const * data = CMSG_DATA(chdr);
 			

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(LIBMAUS_LCS_OVERLAPORIENTATION_HPP)
@@ -29,6 +29,8 @@ namespace libmaus
 	{
 		struct OverlapOrientation
 		{
+			virtual ~OverlapOrientation() {}
+		
 			enum overlap_orientation 
 			{
 				overlap_cover_complete = 0,
@@ -39,8 +41,24 @@ namespace libmaus
 				overlap_a_covers_b     = 5,
 				overlap_b_covers_a     = 6,
 				overlap_ar_covers_b    = 7,
-				overlap_b_covers_ar    = 8
+				overlap_b_covers_ar    = 8,
+				overlap_a_complete_b   = 9,
+				overlap_ar_complete_b  = 10
 			};
+			
+			static bool isDovetail(overlap_orientation const o)
+			{
+				switch ( o )
+				{
+					case overlap_a_back_dovetail_b_front:
+					case overlap_a_front_dovetail_b_back:
+					case overlap_a_front_dovetail_b_front:
+					case overlap_a_back_dovetail_b_back:
+						return true;
+					default:
+						return false;
+				}			
+			}
 			
 			static overlap_orientation getInverse(overlap_orientation const o)
 			{
@@ -71,10 +89,14 @@ namespace libmaus
 						return overlap_b_covers_ar;
 					case overlap_b_covers_ar:
 						return overlap_ar_covers_b;
+					case overlap_a_complete_b:
+						return overlap_a_complete_b;
+					case overlap_ar_complete_b:
+						return overlap_ar_complete_b;
 					default:
 					{
 						::libmaus::exception::LibMausException se;
-						se.getStream() << "Orientation " << o << " has no inverse." << std::endl;
+						se.getStream() << "Orientation " << static_cast<int>(o) << " has no inverse." << std::endl;
 						se.finish();
 						throw se;
 					}
@@ -141,6 +163,8 @@ namespace libmaus
 				case OverlapOrientation::overlap_b_covers_a: out << "overlap_b_covers_a"; break;
 				case OverlapOrientation::overlap_ar_covers_b: out << "overlap_ar_covers_b"; break;
 				case OverlapOrientation::overlap_b_covers_ar: out << "overlap_b_covers_ar"; break;
+				case OverlapOrientation::overlap_a_complete_b: out << "overlap_a_complete_b"; break;
+				case OverlapOrientation::overlap_ar_complete_b: out << "overlap_ar_complete_b"; break;
 			}
 			return out;
 		}

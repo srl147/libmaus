@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_BAMBAM_CIGAROPERATION_HPP)
 #define LIBMAUS_BAMBAM_CIGAROPERATION_HPP
@@ -27,6 +27,7 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		//! cigar operation type
 		typedef std::pair<int32_t,int32_t> cigar_operation;
 	}
 }

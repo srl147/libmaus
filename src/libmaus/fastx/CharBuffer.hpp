@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(CHARBUFFER_HPP)
 #define CHARBUFFER_HPP
@@ -33,9 +33,15 @@ namespace libmaus
                 {
                 	typedef _value_type value_type;
                 	static const ::libmaus::autoarray::alloc_type atype = _atype;
+                	typedef EntityBuffer<value_type,_atype> this_type;
+                	
+                	private:
+                	this_type operator=(this_type const &);
+                	EntityBuffer(this_type const &);
                 
-                        unsigned int buffersize;
-                        unsigned int length;
+                	public:
+                        uint64_t buffersize;
+                        uint64_t length;
 			::libmaus::autoarray::AutoArray<value_type,atype> abuffer;
 			value_type * buffer;
 
@@ -53,7 +59,7 @@ namespace libmaus
                         
                         void expandBuffer()
                         {
-                                unsigned int newbuffersize = 2*buffersize;
+                                uint64_t newbuffersize = std::max(2*buffersize,static_cast<uint64_t>(1u));
                                 ::libmaus::autoarray::AutoArray<value_type,atype> newabuffer(newbuffersize);
                         
                                 std::copy ( abuffer.get(), abuffer.get()+buffersize, newabuffer.get() );
@@ -73,7 +79,7 @@ namespace libmaus
 			
 			}
 
-                        EntityBuffer(unsigned int const initialsize = 128)
+                        EntityBuffer(uint64_t const initialsize = 128)
                         : buffersize(initialsize), length(0), abuffer(buffersize), buffer(abuffer.get())
                         {
                         

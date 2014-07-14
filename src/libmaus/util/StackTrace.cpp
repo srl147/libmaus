@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,21 +15,29 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/StackTrace.hpp>
 #if defined(__linux__)
 #include <libmaus/util/PosixExecute.hpp>
 #endif
 
+#if defined(__linux__)
 static std::string chomp(std::string s)
 {
         while ( s.size() && isspace(s[s.size()-1]) )
                 s = s.substr(0,s.size()-1);
         return s;
 }
+#endif
 
-std::string libmaus::util::StackTrace::toString(bool const translate) const
+libmaus::util::StackTrace::~StackTrace() {}
+
+std::string libmaus::util::StackTrace::toString(bool const
+#if defined(__linux)
+translate
+#endif
+) const
 {
         std::ostringstream ostr;
 
@@ -72,7 +80,11 @@ std::string libmaus::util::StackTrace::toString(bool const translate) const
         return ostr.str();
 }
 
-void libmaus::util::StackTrace::simpleStackTrace(std::ostream & ostr)
+void libmaus::util::StackTrace::simpleStackTrace(std::ostream &
+#if defined(LIBMAUS_HAVE_BACKTRACE)
+ostr
+#endif
+)
 {
 	#if defined(LIBMAUS_HAVE_BACKTRACE)
 	unsigned int const depth = 20;
@@ -87,7 +99,7 @@ void libmaus::util::StackTrace::simpleStackTrace(std::ostream & ostr)
 	#endif
 }
 
-libmaus::util::StackTrace::StackTrace()
+libmaus::util::StackTrace::StackTrace() : trace()
 {
 	#if defined(LIBMAUS_HAVE_BACKTRACE)
 	unsigned int const depth = 20;

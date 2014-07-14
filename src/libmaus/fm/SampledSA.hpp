@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(SAMPLEDSA_HPP)
 #define SAMPLEDSA_HPP
 
 #include <libmaus/lf/LF.hpp>
+#include <libmaus/bitio/putBits.hpp>
 #include <libmaus/util/unique_ptr.hpp>
 
 namespace libmaus
@@ -98,7 +99,8 @@ namespace libmaus
 				uint64_t s = 0;
 				sasamplingrate = readUnsignedInt(in,s);
 				RSA = readArray64(in,s);
-				ARSA = UNIQUE_PTR_MOVE(::libmaus::rank::ERank222B::unique_ptr_type ( new ::libmaus::rank::ERank222B(RSA.get(), padn) ));
+				::libmaus::rank::ERank222B::unique_ptr_type tARSA( new ::libmaus::rank::ERank222B(RSA.get(), padn) );
+				ARSA = UNIQUE_PTR_MOVE(tARSA);
 				SSA = readArray64(in,s);
 				// std::cerr << "SA: " << s << " bytes = " << s*8 << " bits = " << (s+(1024*1024-1))/(1024*1024) << " mb" << " samplingrate = " << sasamplingrate << std::endl;
 				return s;
@@ -153,7 +155,8 @@ namespace libmaus
 
 				assert ( r == rr );
 
-				ARSA = UNIQUE_PTR_MOVE(::libmaus::rank::ERank222B::unique_ptr_type ( new ::libmaus::rank::ERank222B(RSA.get(), padn) ));
+				::libmaus::rank::ERank222B::unique_ptr_type tARSA( new ::libmaus::rank::ERank222B(RSA.get(), padn) );
+				ARSA = UNIQUE_PTR_MOVE(tARSA);
 
 				if ( verbose )
 					std::cerr << "(fillingSampledSuffixArray";
@@ -205,6 +208,7 @@ namespace libmaus
 		struct SimpleSampledSA
 		{
 			typedef SimpleSampledSA<lf_type> sampled_sa_type;
+			typedef sampled_sa_type this_type;
 			typedef typename ::libmaus::util::unique_ptr < sampled_sa_type > :: type unique_ptr_type;
 
 			lf_type const * lf;
@@ -213,6 +217,13 @@ namespace libmaus
 			uint64_t sasamplingmask;
 			unsigned int sasamplingshift;
 			::libmaus::autoarray::AutoArray<uint64_t> SSA;
+			
+			uint64_t byteSize() const
+			{
+				return
+					sizeof(lf_type const *) +
+					2*sizeof(uint64_t) + sizeof(unsigned int) + SSA.byteSize();
+			}
 			
 			void setSamplingRate(uint64_t const samplingrate)
 			{
@@ -287,6 +298,13 @@ namespace libmaus
 				SSA = readArray64(in,s);
 				// std::cerr << "SA: " << s << " bytes = " << s*8 << " bits = " << (s+(1024*1024-1))/(1024*1024) << " mb" << " samplingrate = " << sasamplingrate << std::endl;
 				return s;
+			}
+			
+			static unique_ptr_type load(lf_type const * lf, std::string const & filename)
+			{
+				libmaus::aio::CheckedInputStream CIS(filename);
+				unique_ptr_type ptr(new this_type(lf,CIS));
+				return UNIQUE_PTR_MOVE(ptr);
 			}
 			
 			SimpleSampledSA(lf_type const * rlf, std::istream & in) : lf(rlf) { deserialize(in); }

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LCSBASECONSTANTS_HPP)
 #define LCSBASECONSTANTS_HPP
@@ -29,6 +29,8 @@ namespace libmaus
 		struct BaseConstants
 		{
 			enum step_type { STEP_MATCH, STEP_MISMATCH, STEP_INS, STEP_DEL };
+			
+			virtual ~BaseConstants() {}
 		};
 		
 		inline std::ostream & operator<<(std::ostream & out, BaseConstants::step_type const s)

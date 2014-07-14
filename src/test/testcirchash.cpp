@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/bambam/CircularHashCollatingBamDecoder.hpp>
 
@@ -27,10 +27,15 @@
 void bamcollate(libmaus::util::ArgInfo const & arginfo)
 {
 	uint32_t const excludeflags = libmaus::bambam::BamFlagBase::stringToFlags(arginfo.getValue<std::string>("exclude","SECONDARY,QCFAIL"));
-	libmaus::bambam::CircularHashCollatingBamDecoder CHCBD(std::cin,"tmpfile",excludeflags);
+	libmaus::bambam::BamCircularHashCollatingBamDecoder CHCBD(
+		std::cin,
+		"tmpfile",
+		excludeflags,
+		false /* put rank */
+	);
 	libmaus::bambam::CircularHashCollatingBamDecoder::OutputBufferEntry const * ob = 0;
 
-	libmaus::bambam::BamHeader const & bamheader = CHCBD.bamdec.bamheader;
+	libmaus::bambam::BamHeader const & bamheader = CHCBD.getHeader();
 	std::string const headertext(bamheader.text);
 
 	// add PG line to header
@@ -60,17 +65,17 @@ void bamcollate(libmaus::util::ArgInfo const & arginfo)
 		
 		if ( ob->fpair )
 		{
-			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.bgzfos,ob->blocksizea);
-			bamwr.bgzfos.write(reinterpret_cast<char const *>(ob->Da),ob->blocksizea);
-			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.bgzfos,ob->blocksizeb);
-			bamwr.bgzfos.write(reinterpret_cast<char const *>(ob->Db),ob->blocksizeb);
+			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.getStream(),ob->blocksizea);
+			bamwr.getStream().write(reinterpret_cast<char const *>(ob->Da),ob->blocksizea);
+			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.getStream(),ob->blocksizeb);
+			bamwr.getStream().write(reinterpret_cast<char const *>(ob->Db),ob->blocksizeb);
 
 			cnt += 2;
 		}
 		else if ( ob->fsingle || ob->forphan1 || ob->forphan2 )
 		{
-			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.bgzfos,ob->blocksizea);
-			bamwr.bgzfos.write(reinterpret_cast<char const *>(ob->Da),ob->blocksizea);
+			libmaus::bambam::EncoderBase::putLE< libmaus::lz::BgzfDeflate<std::ostream>,uint32_t>(bamwr.getStream(),ob->blocksizea);
+			bamwr.getStream().write(reinterpret_cast<char const *>(ob->Da),ob->blocksizea);
 
 			cnt += 1;
 		}
@@ -92,7 +97,7 @@ void bamtofastqNonCollating(libmaus::util::ArgInfo const & arginfo)
 	libmaus::timing::RealTimeClock rtc; rtc.start();
 	uint32_t const excludeflags = libmaus::bambam::BamFlagBase::stringToFlags(arginfo.getValue<std::string>("exclude","SECONDARY,QCFAIL"));
 	libmaus::bambam::BamDecoder bamdec(std::cin);
-	libmaus::bambam::BamAlignment const & algn = bamdec.alignment;
+	libmaus::bambam::BamAlignment const & algn = bamdec.getAlignment();
 	::libmaus::autoarray::AutoArray<uint8_t> T;
 	uint64_t cnt = 0;
 	uint64_t bcnt = 0;
@@ -122,14 +127,13 @@ void bamtofastqNonCollating(libmaus::util::ArgInfo const & arginfo)
 	std::cout.flush();
 }
 
-void bamtofastqCollating(libmaus::util::ArgInfo const & arginfo)
+void bamtofastqCollating(
+	libmaus::util::ArgInfo const & arginfo,
+	libmaus::bambam::CircularHashCollatingBamDecoder & CHCBD
+)
 {
-	uint32_t const excludeflags = libmaus::bambam::BamFlagBase::stringToFlags(arginfo.getValue<std::string>("exclude","SECONDARY,QCFAIL"));
 	libmaus::bambam::BamToFastqOutputFileSet OFS(arginfo);
-	libmaus::util::TempFileRemovalContainer::setup();
-	std::string const tmpfilename = arginfo.getValue<std::string>("T",arginfo.getDefaultTmpFileName());
-	libmaus::util::TempFileRemovalContainer::addTempFile(tmpfilename);
-	libmaus::bambam::CircularHashCollatingBamDecoder CHCBD(std::cin,tmpfilename,excludeflags);
+
 	libmaus::bambam::CircularHashCollatingBamDecoder::OutputBufferEntry const * ob = 0;
 	
 	// number of alignments written to files
@@ -182,6 +186,7 @@ void bamtofastqCollating(libmaus::util::ArgInfo const & arginfo)
 		if ( precnt >> verbshift != cnt >> verbshift )
 		{
 			std::cerr 
+				<< "[V] "
 				<< (cnt >> 20) 
 				<< "\t"
 				<< (static_cast<double>(bcnt)/(1024.0*1024.0))/rtc.getElapsedSeconds() << "MB/s"
@@ -189,7 +194,50 @@ void bamtofastqCollating(libmaus::util::ArgInfo const & arginfo)
 		}
 	}
 	
-	std::cerr << cnt << std::endl;
+	std::cerr << "[V] " << cnt << std::endl;
+}
+
+void bamtofastqCollating(libmaus::util::ArgInfo const & arginfo)
+{
+	uint32_t const excludeflags = libmaus::bambam::BamFlagBase::stringToFlags(arginfo.getValue<std::string>("exclude","SECONDARY,QCFAIL"));
+	libmaus::util::TempFileRemovalContainer::setup();
+	std::string const tmpfilename = arginfo.getValue<std::string>("T",arginfo.getDefaultTmpFileName());
+	libmaus::util::TempFileRemovalContainer::addTempFile(tmpfilename);
+	std::string const inputformat = arginfo.getValue<std::string>("inputformat","bam");
+
+	if ( inputformat == "bam" )
+	{
+		libmaus::bambam::BamCircularHashCollatingBamDecoder CHCBD(
+			std::cin,
+			tmpfilename,
+			excludeflags,
+			false /* put rank */
+			);
+		bamtofastqCollating(arginfo,CHCBD);
+	}
+	#if defined(LIBMAUS_HAVE_DL_FUNCS)
+	else if ( inputformat == "sam" )
+	{
+		libmaus::bambam::ScramCircularHashCollatingBamDecoder CHCBD(
+			"-","r","",
+			tmpfilename,
+			excludeflags,
+			false /* put rank */
+		);
+		bamtofastqCollating(arginfo,CHCBD);
+	}
+	else if ( inputformat == "cram" )
+	{
+		std::string const reference = arginfo.getValue<std::string>("reference","");
+		libmaus::bambam::ScramCircularHashCollatingBamDecoder CHCBD(
+			"-","rc",reference,
+			tmpfilename,
+			excludeflags,
+			false/* put rank */
+		);
+		bamtofastqCollating(arginfo,CHCBD);
+	}
+	#endif
 }
 
 void bamtofastq(libmaus::util::ArgInfo const & arginfo)

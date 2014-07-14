@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(POSIXMUTEXARRAY_HPP)
 #define POSIXMUTEXARRAY_HPP
@@ -68,7 +68,7 @@ namespace libmaus
 			
 			public:
 			PosixThread(std::string const rname = std::string())
-			: name(rname)
+			: thread(), name(rname)
 			{
 			
 			}
@@ -82,7 +82,7 @@ namespace libmaus
 			typedef cpuset_t cpu_set_t;
 			#endif
 			
-			#if defined(__linux__) || defined(__FreeBSD__)
+			#if defined(LIBMAUS_HAVE_PTHREAD_SETAFFINITY_NP)
 			void setaffinity(std::vector<uint64_t> const & procs)
 			{
 				cpu_set_t cpuset;
@@ -112,7 +112,8 @@ namespace libmaus
 			{
 				if ( ! thread.get() )
 				{
-					thread = UNIQUE_PTR_MOVE(thread_ptr_type(new pthread_t));
+					thread_ptr_type tthread(new pthread_t);
+					thread = UNIQUE_PTR_MOVE(tthread);
 
 					#if 0
 					std::cerr << "Creating thread without affinity." << std::endl;
@@ -172,7 +173,8 @@ namespace libmaus
 			{
 				if ( ! thread.get() )
 				{
-					thread = UNIQUE_PTR_MOVE(thread_ptr_type(new pthread_t));
+					thread_ptr_type tthread(new pthread_t);
+					thread = UNIQUE_PTR_MOVE(tthread);
 
 					#if 0
 					std::cerr << "Creating thread without affinity." << std::endl;
@@ -203,7 +205,7 @@ namespace libmaus
 			}
 			#endif
 
-			#if defined(__linux__) || defined(__FreeBSD__)
+			#if defined(LIBMAUS_HAVE_PTHREAD_SETAFFINITY_NP)
 			void start(uint64_t const proc)
 			{
 				start ( std::vector<uint64_t>(1,proc) );
@@ -213,7 +215,8 @@ namespace libmaus
 			{
 				if ( ! thread.get() )
 				{
-					thread = UNIQUE_PTR_MOVE(thread_ptr_type(new pthread_t));
+					thread_ptr_type tthread(new pthread_t);
+					thread = UNIQUE_PTR_MOVE(tthread);
 				
 					pthread_attr_t attr;
 					if ( pthread_attr_init(&attr) )
@@ -274,6 +277,30 @@ namespace libmaus
 			
 			virtual void * run() = 0;
 			
+			void * tryJoin()
+			{
+				if ( thread.get() )
+				{
+					void * p = 0;
+
+					if ( pthread_join(*thread,&p) )
+					{
+						::libmaus::exception::LibMausException se;
+						se.getStream() << "pthread_join() failed in PosixThread::join()";
+						se.finish();
+						throw se;				
+					}
+					
+					thread.reset();
+	
+					return p;
+				}
+				else
+				{
+					return 0;
+				}
+			}
+			
 			void * join()
 			{
 				if ( thread.get() )
@@ -301,7 +328,12 @@ namespace libmaus
 				}
 			}
 			
-			void setName(std::string const & name)
+			void setName(
+				std::string const & 
+				#if defined(LIBMAUS_HAVE_PRCTL)
+					name
+				#endif
+			)
 			{
 				#if defined(LIBMAUS_HAVE_PRCTL)
 				prctl(PR_SET_NAME,name.c_str(),0,0,0);

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(GENERICSERIALISE_HPP)
 #define GENERICSERIALISE_HPP
@@ -27,8 +27,17 @@ namespace libmaus
 {
 	namespace util
 	{
+		/**
+		 * generic serialisation class using ostream operator<<
+		 **/
 		struct GenericSerialisation
 		{
+			/**
+			 * serialise object D to output stream out by using operator<< for D
+			 *
+			 * @param out output stream
+			 * @param D object to be serialised
+			 **/
                         template<typename stream_type, typename data_type>
 			static void serialise(stream_type & out, data_type const & D)
 			{
@@ -36,6 +45,12 @@ namespace libmaus
 				ostr << D;
 				::libmaus::util::StringSerialisation::serialiseString(out,ostr.str());
 			}
+			/**
+			 * deserialise object serialised by the serialise function of this class
+			 *
+			 * @param in input stream
+			 * @return deserialised object
+			 **/
                         template<typename stream_type, typename data_type>
 			static data_type deserialise(stream_type & in)
 			{

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/select/ESelectBase.hpp>
 
 /**
@@ -48,5 +48,5 @@ libmaus::autoarray::AutoArray<uint8_t> libmaus::select::ESelectBase<sym>::comput
 }
 
 
-template class ::libmaus::select::ESelectBase<false>;
-template class ::libmaus::select::ESelectBase<true>;
+template struct ::libmaus::select::ESelectBase<false>;
+template struct ::libmaus::select::ESelectBase<true>;

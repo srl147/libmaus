@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(BITWRITER_HPP)
 #define BITWRITER_HPP
@@ -34,7 +34,7 @@ namespace libmaus
 		/**
 		 * bit stream writer class
 		 **/
-		template<typename _data_type, typename _data_iterator, _data_type basemask>
+		template<typename _data_type, typename _data_iterator, _data_type _basemask>
 		struct BitWriterTemplate
 		{
 			public:
@@ -43,6 +43,7 @@ namespace libmaus
 			 **/
 			typedef _data_type data_type;
 			typedef _data_iterator data_iterator;
+			static _data_type const basemask = _basemask;
 			
 			// ptr
 			typedef BitWriterTemplate<data_type,data_iterator,basemask> this_type;
@@ -54,6 +55,10 @@ namespace libmaus
 			data_type cur;
 			
 			public:
+			/**
+			 * copy constructor
+			 **/
+			BitWriterTemplate(this_type const & o) : U(o.U), mask(o.mask), cur(o.cur) {}
 			/**
 			 * initialize writer with pointer to array
 			 **/

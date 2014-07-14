@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,10 +15,11 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/bitio/CompactArray.hpp>
 #include <libmaus/bitio/SignedCompactArray.hpp>
+#include <libmaus/math/bitsPerNum.hpp>
 #include <libmaus/util/GetFileSize.hpp>
 #include <libmaus/suffixsort/divsufsort.hpp>
 #include <libmaus/timing/RealTimeClock.hpp>

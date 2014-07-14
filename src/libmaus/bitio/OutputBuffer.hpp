@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(OUTPUTBUFFER_HPP)
 #define OUTPUTBUFFER_HPP
@@ -88,9 +88,10 @@ namespace libmaus
                         
                         OutputBufferIteratorProxy(OutputBuffer<_data_type> & rbuffer) : buffer(rbuffer) {}
                         
-                         void operator=(data_type D)
+                         OutputBufferIteratorProxy<data_type> & operator=(data_type D)
                          {
                                 buffer.writeData(D);
+                                return *this;
                          }
                 };
 

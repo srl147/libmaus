@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(FASTAREADER_HPP)
@@ -157,6 +157,20 @@ namespace libmaus
                           foundnextmarker(false), nextid(0),
  			  interval(nextid, std::numeric_limits<uint64_t>::max(), 0, 
  			           std::numeric_limits<uint64_t>::max(), 0 /* syms */, 0/*minlen*/, 0/*maxlen*/)
+			{
+				findNextMarker();
+			}
+
+			template<typename reader_init_type>
+			FastAReaderTemplate(
+			        reader_init_type * rinit,
+			        FastInterval const & FI,
+				uint64_t const bufsize = 16*1024
+			)
+			: reader_base_type(rinit,bufsize),
+                          scanterm('>'), newlineterm('\n'),
+                          foundnextmarker(false), nextid(FI.low),
+			  interval(FI)
 			{
 				findNextMarker();
 			}
@@ -843,7 +857,7 @@ namespace libmaus
                                                 );
 			        }
 			        
-			        return Phist;
+			        return UNIQUE_PTR_MOVE(Phist);
 			}
 
 			static ::libmaus::util::Histogram::unique_ptr_type getHistogram(std::vector<std::string> const & filenames, std::vector<FastInterval> const & rinterval)
@@ -863,7 +877,7 @@ namespace libmaus
                                         lock.unlock();
                                 }
                                 
-                                return Phist;
+                                return UNIQUE_PTR_MOVE(Phist);
 			}
 			
 			static std::vector < ::libmaus::aio::FileFragment > getDataFragments(std::vector < std::string > const & filenames)

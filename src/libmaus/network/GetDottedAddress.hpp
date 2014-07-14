@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(GETDOTTEDADDRESS_HPP)
 #define GETDOTTEDADDRESS_HPP
@@ -45,7 +45,7 @@ namespace libmaus
 				if ( ! he )
 				{
 					::libmaus::exception::LibMausException se;
-					se.getStream() << "failed to get address via gethostbyname: " << hstrerror(h_errno);
+					se.getStream() << "failed to get address for " << hostname << " via gethostbyname: " << hstrerror(h_errno);
 					se.finish();
 					throw se;		
 				}
@@ -53,7 +53,7 @@ namespace libmaus
 				if ( he->h_addr_list[0] == 0 )
 				{
 					::libmaus::exception::LibMausException se;
-					se.getStream() << "failed to get address via gethostbyname (no address returned)";
+					se.getStream() << "failed to get address for " << hostname << " via gethostbyname (no address returned)";
 					se.finish();
 					throw se;		
 				}
@@ -71,7 +71,7 @@ namespace libmaus
 				if ( ! he )
 				{
 					::libmaus::exception::LibMausException se;
-					se.getStream() << "failed to get address via gethostbyname: " << hstrerror(h_errno);
+					se.getStream() << "failed to get address for " << hostname << " via gethostbyname: " << hstrerror(h_errno);
 					se.finish();
 					throw se;		
 				}

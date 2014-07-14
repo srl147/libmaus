@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,10 +15,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
-#if ! defined(PENALTYCONSTANTS_HPP)
-#define PENALTYCONSTANTS_HPP
+#if ! defined(LIBMAUS_LCS_PENALTYCONSTANTS_HPP)
+#define LIBMAUS_LCS_PENALTYCONSTANTS_HPP
 
 #include <libmaus/lcs/BaseConstants.hpp>
 
@@ -33,6 +33,8 @@ namespace libmaus
 			static similarity_type const penalty_del = 3;
 			static similarity_type const penalty_subst = 1;
 			static similarity_type const gain_match = 1;		
+			
+			virtual ~PenaltyConstants() {}
 		};
 	}
 }

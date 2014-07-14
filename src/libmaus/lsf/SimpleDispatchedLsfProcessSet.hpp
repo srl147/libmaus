@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/lsf/DispatchedLsfProcess.hpp>
 #include <libmaus/lsf/LSFTaskQueue.hpp>
 #include <libmaus/network/LogReceiver.hpp>
@@ -28,6 +28,10 @@ namespace libmaus
 	{
 		struct SimpleDispatchedLsfProcessSet : public ::libmaus::parallel::PosixThread
 		{
+			typedef SimpleDispatchedLsfProcessSet this_type;
+			typedef libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+		
 			typedef ::libmaus::lsf::DispatchedLsfProcess::shared_ptr_type proc_ptr;
 			typedef std::map < uint64_t, proc_ptr > map_type;
 			typedef map_type::const_iterator const_iterator;

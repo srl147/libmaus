@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/HistogramSet.hpp>
 			
@@ -23,7 +23,10 @@ libmaus::util::HistogramSet::HistogramSet(uint64_t const numhist, uint64_t const
 : H(numhist)
 {
 	for ( uint64_t i = 0; i < numhist; ++i )
-		H [ i ] = UNIQUE_PTR_MOVE ( Histogram::unique_ptr_type ( new Histogram(lowsize) ) );
+	{
+		Histogram::unique_ptr_type tHi( new Histogram(lowsize) );
+		H [ i ] = UNIQUE_PTR_MOVE ( tHi );
+	}
 }
 
 void libmaus::util::HistogramSet::print(std::ostream & out) const
@@ -46,7 +49,8 @@ libmaus::util::Histogram::unique_ptr_type libmaus::util::HistogramSet::merge() c
 	}
 	else
 	{
-		return UNIQUE_PTR_MOVE(Histogram::unique_ptr_type());
+		Histogram::unique_ptr_type thist;
+		return UNIQUE_PTR_MOVE(thist);
 	}
 }
 

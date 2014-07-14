@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/trie/TrieState.hpp>
 #include <libmaus/types/types.hpp>
@@ -51,7 +51,7 @@ int main()
 	::libmaus::trie::LinearTrie<char> linear = trie.toLinear();
 	std::cout << linear;
 
-	::libmaus::trie::LinearHashTrie<char,uint32_t>::unique_ptr_type LHT = UNIQUE_PTR_MOVE(trie.toLinearHashTrie<uint32_t>());
+	::libmaus::trie::LinearHashTrie<char,uint32_t>::unique_ptr_type LHT(trie.toLinearHashTrie<uint32_t>());
 	std::cout << *LHT;
 
 	std::string const text = "ccaabab_abaaa";
@@ -62,7 +62,7 @@ int main()
 	::libmaus::trie::Trie<char> trienofailure;
 	// std::vector<std::string> dict2;
 	trienofailure.insertContainer(dict);
-	::libmaus::trie::LinearHashTrie<char,uint32_t>::unique_ptr_type LHTnofailure = UNIQUE_PTR_MOVE(trienofailure.toLinearHashTrie<uint32_t>());
+	::libmaus::trie::LinearHashTrie<char,uint32_t>::unique_ptr_type LHTnofailure(trienofailure.toLinearHashTrie<uint32_t>());
 	std::cout << LHTnofailure->searchCompleteNoFailure(dict[0]) << std::endl;
 	std::cout << LHTnofailure->searchCompleteNoFailure(dict[1]) << std::endl;
 	std::cout << LHTnofailure->searchCompleteNoFailure(dict[2]) << std::endl;

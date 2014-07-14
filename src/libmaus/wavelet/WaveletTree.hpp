@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(WAVELETTREE_HPP)
 #define WAVELETTREE_HPP
@@ -50,7 +50,7 @@ namespace libmaus
 		{
 			private:
 			template<typename it>
-			static uint64_t getNumBits(it a, uint64_t const n) { return 0; }
+			static uint64_t getNumBits(it /*a */, uint64_t const /* n */) { return 0; }
 		};
 		template<typename symbol_type>
 		struct GetNumBits<symbol_type, false>

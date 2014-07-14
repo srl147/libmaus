@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(SATURATINGCOUNTER_HPP)
 #define SATURATINGCOUNTER_HPP
@@ -34,7 +34,12 @@ namespace libmaus
 		{
 			typedef SaturatingCounter this_type;
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			
+			private:
+			SaturatingCounter & operator=(SaturatingCounter const &);
+			SaturatingCounter(SaturatingCounter const &);
 		
+			public:
 			uint64_t const n;
 			::libmaus::autoarray::AutoArray<uint64_t,::libmaus::autoarray::alloc_type_c> B;
 			uint8_t * const A;

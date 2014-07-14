@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_UTIL_COMPACTREADENDSBASE_HPP)
 #define LIBMAUS_UTIL_COMPACTREADENDSBASE_HPP
 
@@ -29,21 +29,44 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * base class for compact read ends storage
+		 **/
 		struct CompactReadEndsBase
 		{
-			/*
-			 * decode number in utf8 representation
+			/**
+			 * decode number in utf8 representation; p will be right behind the number when the function returns
+			 *
+			 * @param p input iterator
+			 * @return decoded length
 			 */
 			static uint32_t decodeLength(uint8_t const * & p)
 			{
 				::libmaus::util::GetObject<uint8_t const *> G(p);
-				uint32_t const len = ::libmaus::util::UTF8::decodeUTF8(G);
+				uint32_t const len = ::libmaus::util::UTF8::decodeUTF8Unchecked(G);
+				p = G.p;
+				return len;
+			}
+
+			/**
+			 * decode number in utf8 representation; p will be right behind the number when the function returns
+			 *
+			 * @param p input iterator
+			 * @return decoded length
+			 */
+			static uint32_t decodeLength(uint8_t * & p)
+			{
+				::libmaus::util::GetObject<uint8_t *> G(p);
+				uint32_t const len = ::libmaus::util::UTF8::decodeUTF8Unchecked(G);
 				p = G.p;
 				return len;
 			}
 			
 			/**
 			 * get length of number in utf8 representation
+			 *
+			 * @param n number
+			 * @return length of n in utf8 representation
 			 **/
 			static uint64_t getNumberLength(uint32_t const n)
 			{
@@ -52,8 +75,11 @@ namespace libmaus
 				return P.c;
 			}
 			
-			/*
+			/**
 			 * get length of compact entry in bytes
+			 *
+			 * @param R read ends object
+			 * @return length of R in compact representation in bytes
 			 */
 			static uint64_t getEntryLength(::libmaus::bambam::ReadEnds const & R)
 			{
@@ -61,6 +87,14 @@ namespace libmaus
 				R.put(P);
 				return P.c;
 			}
+
+			/**
+			 * get length of compact entry plus one alignment in bytes
+			 *
+			 * @param R read ends object
+			 * @param p alignment
+			 * @return length of R in compact representation in bytes plus length of p in bytes
+			 **/
 			static uint64_t getEntryLength(
 				::libmaus::bambam::ReadEnds const & R,
 				::libmaus::bambam::BamAlignment const & p
@@ -71,6 +105,15 @@ namespace libmaus
 				p.serialise(P);
 				return P.c;
 			}
+
+			/**
+			 * get length of compact entry plus two alignments in bytes
+			 *
+			 * @param R read ends object
+			 * @param p first alignment
+			 * @param q second alignment
+			 * @return length of R in compact representation in bytes plus length of p and q in bytes
+			 **/
 			static uint64_t getEntryLength(
 				::libmaus::bambam::ReadEnds const & R,
 				::libmaus::bambam::BamAlignment const & p,

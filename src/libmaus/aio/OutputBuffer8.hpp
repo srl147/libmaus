@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(LIBMAUS_AIO_OUTPUTBUFFER8_HPP)
@@ -31,17 +31,35 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * asynchronous output buffer for 64 bit words
+		 **/ 
                 struct OutputBuffer8
                 {
+                	//! this type
                         typedef OutputBuffer8 this_type;
+                        //! unique pointer type
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
                 
+			private:
+			//! buffer
                         ::libmaus::autoarray::AutoArray<uint64_t> B;
+                        //! buffer start pointer
                         uint64_t * const pa;
+                        //! buffer current pointer
                         uint64_t * pc;
+                        //! buffer end pointer
                         uint64_t * const pe;
+                        //! async writer
                         ::libmaus::aio::AsynchronousWriter W;
 
+                        public:
+                        /**
+                         * write an array A to file outputfilename
+                         *
+                         * @param A array
+                         * @param outputfilename output file name
+                         **/
 			static void writeArray(::libmaus::autoarray::AutoArray<uint64_t> const & A, 
 				std::string const & outputfilename)
 			{
@@ -53,19 +71,30 @@ namespace libmaus
 				out.flush();
 			}
 
-
+			/**
+			 * constructor
+			 *
+			 * @param filename output file name
+			 * @param bufsize output buffer size
+			 **/
                         OutputBuffer8(std::string const & filename, uint64_t const bufsize)
                         : B(bufsize), pa(B.get()), pc(pa), pe(pa+B.getN()), W(filename,16)
                         {
 
                         }
 
+                        /**
+                         * flush buffer
+                         **/
                         void flush()
                         {
                                 writeBuffer();
                                 W.flush();
                         }
 
+                        /**
+                         * write current buffer and reset it
+                         **/
                         void writeBuffer()
                         {
                                 W.write ( 
@@ -74,6 +103,11 @@ namespace libmaus
                                 pc = pa;
                         }
 
+                        /**
+                         * put one element c in buffer and flush if the buffer runs full
+                         *
+                         * @param c element to be put in buffer
+                         **/
                         void put(uint64_t const c)
                         {
                                 *(pc++) = c;
@@ -83,5 +117,4 @@ namespace libmaus
                 };
 	}
 }
-
 #endif

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/LibMausConfig.hpp>
 #include <iostream>
 #include <cstdlib>
@@ -29,6 +29,7 @@ int main()
 #else
 #include <libmaus/util/ArgInfo.hpp>
 #include <libmaus/bambam/ScramDecoder.hpp>
+#include <libmaus/bambam/ScramEncoder.hpp>
 
 int main(int argc, char * argv[])
 {
@@ -37,13 +38,10 @@ int main(int argc, char * argv[])
 		::libmaus::util::ArgInfo const arginfo(argc,argv);
 
 		::libmaus::bambam::ScramDecoder dec("-","rc","");
+		::libmaus::bambam::ScramEncoder enc(dec.getHeader(),"-","w", "/nfs/srpipe_references/references/PhiX/Illumina/all/fasta/phix-illumina.fa");
 
-		std::cout << dec.bamheader.text;
-			
 		while ( dec.readAlignment() )
-		{
-			std::cout << dec.formatAlignment() << std::endl;				
-		}		
+			enc.encode(dec.getAlignment());			
 	}
 	catch(std::exception const & ex)
 	{

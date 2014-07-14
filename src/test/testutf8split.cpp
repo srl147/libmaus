@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <iostream>
 #include <libmaus/util/ArgInfo.hpp>
@@ -28,10 +28,12 @@
 #include <libmaus/wavelet/ImpExternalWaveletGeneratorHuffman.hpp>
 #include <libmaus/suffixsort/divsufsort.hpp>
 #include <libmaus/wavelet/ImpHuffmanWaveletTree.hpp>
+#include <libmaus/wavelet/ImpCompactHuffmanWaveletTree.hpp>
 #include <libmaus/util/TempFileRemovalContainer.hpp>
 #include <libmaus/lf/LF.hpp>
 #include <libmaus/util/MemUsage.hpp>
 #include <libmaus/wavelet/Utf8ToImpHuffmanWaveletTree.hpp>
+#include <libmaus/util/FileTempFileContainer.hpp>
 
 void testUtf8String(std::string const & fn)
 {
@@ -82,7 +84,8 @@ void testUtf8Bwt(std::string const & fn)
 	::libmaus::huffman::HuffmanTreeNode::shared_ptr_type htree = ::libmaus::huffman::HuffmanBase::createTree(chist);
 
 	::libmaus::util::TempFileNameGenerator tmpgen(fn+"_tmp",3);
-	::libmaus::wavelet::ImpExternalWaveletGeneratorHuffman IEWGH(htree.get(),tmpgen);
+	::libmaus::util::FileTempFileContainer tmpcnt(tmpgen);
+	::libmaus::wavelet::ImpExternalWaveletGeneratorHuffman IEWGH(htree.get(),tmpcnt);
 	
 	IEWGH.putSymbol(us[us.size()-1]);
 	for ( uint64_t i = 0; i < SA.size(); ++i )
@@ -90,8 +93,8 @@ void testUtf8Bwt(std::string const & fn)
 	IEWGH.createFinalStream(fn+".hwt");
 
 	// load huffman shaped wavelet tree of bwt
-	::libmaus::wavelet::ImpHuffmanWaveletTree::unique_ptr_type IHWT =
-		UNIQUE_PTR_MOVE(::libmaus::wavelet::ImpHuffmanWaveletTree::load(fn+".hwt"));
+	::libmaus::wavelet::ImpHuffmanWaveletTree::unique_ptr_type IHWT
+		(::libmaus::wavelet::ImpHuffmanWaveletTree::load(fn+".hwt"));
 		
 	// check rank counts
 	for ( ::std::map<int64_t,uint64_t>::const_iterator ita = chist.begin(); ita != chist.end(); ++ita )
@@ -171,7 +174,7 @@ void testUtf8Seek(std::string const & fn)
 void testUtf8BlockIndexDecoder(std::string const & fn)
 {
 	::libmaus::util::Utf8BlockIndex::unique_ptr_type index = 
-		UNIQUE_PTR_MOVE(::libmaus::util::Utf8BlockIndex::constructFromUtf8File(fn));
+		(::libmaus::util::Utf8BlockIndex::constructFromUtf8File(fn));
 
 	std::string const idxfn = fn + ".idx";
 	::libmaus::aio::CheckedOutputStream COS(idxfn);
@@ -189,6 +192,32 @@ void testUtf8BlockIndexDecoder(std::string const & fn)
 	assert ( deco[deco.numblocks] == ::libmaus::util::GetFileSize::getFileSize(fn) );
 }
 
+#include <libmaus/wavelet/Utf8ToImpCompactHuffmanWaveletTree.hpp>
+
+void testUtf8ToImpHuffmanWaveletTree(std::string const & fn)
+{
+	{
+		::libmaus::wavelet::Utf8ToImpHuffmanWaveletTree::constructWaveletTree<true>(fn,fn+".hwt");
+		// load huffman shaped wavelet tree of bwt
+		::libmaus::wavelet::ImpHuffmanWaveletTree::unique_ptr_type IHWT
+			(::libmaus::wavelet::ImpHuffmanWaveletTree::load(fn+".hwt"));
+		::libmaus::util::Utf8String::shared_ptr_type us = ::libmaus::util::Utf8String::constructRaw(fn);
+		std::cerr << "checking length " << us->size() << std::endl;
+		for ( uint64_t i = 0; i < us->size(); ++i )
+			assert ( (*us)[i] == (*IHWT)[i] );
+	}
+	
+	{
+		::libmaus::wavelet::Utf8ToImpCompactHuffmanWaveletTree::constructWaveletTree<true>(fn,fn+".hwt");
+		// load huffman shaped wavelet tree of bwt
+		::libmaus::wavelet::ImpCompactHuffmanWaveletTree::unique_ptr_type IHWT
+			(::libmaus::wavelet::ImpCompactHuffmanWaveletTree::load(fn+".hwt"));
+		::libmaus::util::Utf8String::shared_ptr_type us = ::libmaus::util::Utf8String::constructRaw(fn);
+		std::cerr << "checking length " << us->size() << "," << IHWT->size() << std::endl;
+		for ( uint64_t i = 0; i < us->size(); ++i )
+			assert ( (*us)[i] == (*IHWT)[i] );		
+	}
+}
 
 int main(int argc, char * argv[])
 {
@@ -197,20 +226,25 @@ int main(int argc, char * argv[])
 		::libmaus::util::ArgInfo const arginfo(argc,argv);
 		
 		std::string const fn = arginfo.getRestArg<std::string>(0);
-		
-		// testUtf8BlockIndexDecoder(fn); // also creates index file
-		::libmaus::wavelet::Utf8ToImpHuffmanWaveletTree::constructWaveletTree<true>(fn,fn+".hwt");
-		/*
+
+		testUtf8BlockIndexDecoder(fn); // also creates index file
 		testUtf8Bwt(fn);
+		
+		#if !defined(__GNUC__) || (defined(__GNUC__) && GCC_VERSION >= 40200)
+		testUtf8ToImpHuffmanWaveletTree(fn);	
+		#endif
+
+		#if 0
 		testUtf8String(fn);		
 		testUtf8Circular(fn);
 		testUtf8Seek(fn);
-		*/
+		#endif
 		
 		remove ( (fn + ".idx").c_str() ); // remove index
 	}
-	catch(int)//(std::exception const & ex)
+	catch(std::exception const & ex)
 	{
-		// std::cerr << ex.what() << std::endl;	
+		std::cerr << ex.what() << std::endl;	
+		return EXIT_FAILURE;
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TRIPLEEDGEOUTPUTSET_HPP)
 #define TRIPLEEDGEOUTPUTSET_HPP
@@ -67,7 +67,8 @@ namespace libmaus
 				for ( uint64_t i = 0; i < tbs.numparts; ++i )
 				{
 					std::string const filename = getNextFileName();
-					outputs[i] = UNIQUE_PTR_MOVE(output_ptr_type ( new output_type (filename, bufsize) ) );
+					output_ptr_type toutputsi ( new output_type (filename, bufsize) );
+					outputs[i] = UNIQUE_PTR_MOVE(toutputsi);
 				}
 			}
 
@@ -125,7 +126,8 @@ namespace libmaus
 					output.flush();
 					tbs.registerFileName(h, output.filename );
 					outputs[h].reset();
-					outputs[h] = UNIQUE_PTR_MOVE(output_ptr_type ( new output_type ( getNextFileName(), bufsize ) ) );
+					output_ptr_type toutputsh ( new output_type ( getNextFileName(), bufsize ) );
+					outputs[h] = UNIQUE_PTR_MOVE(toutputsh);
 				}
 			}
 		};

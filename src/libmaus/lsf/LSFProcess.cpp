@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,19 +15,23 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/lsf/LSFProcess.hpp>
 
 #if defined(HAVE_LSF)
 #include <lsf/lsbatch.h>
-#include <libmaus/util/WriteableString.hpp>
 #include <iostream>
-#include <libmaus/util/PosixExecute.hpp>
-#include <libmaus/util/stringFunctions.hpp>
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+
+#include <libmaus/types/types.hpp>
+#include <libmaus/util/WriteableString.hpp>
+#include <libmaus/util/PosixExecute.hpp>
+#include <libmaus/util/stringFunctions.hpp>
+
+uint64_t libmaus::lsf::LSF::Mscale = 1000;
 
 ::libmaus::parallel::OMPLock libmaus::lsf::LSF::lsflock;
 
@@ -81,7 +85,8 @@ int64_t libmaus::lsf::LSFProcess::submitJob(
         std::string const & serrfilename,
         std::vector < std::string > const * hosts,
         char const * rcwd,
-        uint64_t const tmpspace
+        uint64_t const tmpspace,
+        char const * model
         )
 {
 	// no lock, submitting happens in a different process
@@ -90,14 +95,17 @@ int64_t libmaus::lsf::LSFProcess::submitJob(
         std::ostringstream bsubstr;
         bsubstr 
                 << "bsub"
+                << " " << "-G \"" << sproject << "\""
                 << " " << "-P \"" << sproject << "\""
                 << " " << "-q \"" << squeuename << "\""
                 << " " << "-J \"" << sjobname << "\""
                 << " " << "-o \"" << soutfilename << "\""
                 << " " << "-e \"" << serrfilename << "\""
                 << " " << "-i \"" << sinfilename << "\""
-                << " " << "-M \"" << maxmem*1000 << "\""
+                << " " << "-M \"" << maxmem*libmaus::lsf::LSF::Mscale << "\""
                 << " " << "-R'" << "select[(mem>="<<maxmem<<" && type==X86_64";
+	if ( model != 0 )
+		bsubstr << " && model==" << model;
         if ( tmpspace != 0 )
                 bsubstr << " && tmp>=" << tmpspace;
         bsubstr << ")] rusage[mem="<<maxmem;
@@ -174,9 +182,10 @@ libmaus::lsf::LSFProcess::LSFProcess(
         std::string const & serrfilename,
         std::vector < std::string > const * hosts,
         char const * cwd,
-        uint64_t const tmpspace
+        uint64_t const tmpspace,
+        char const * model
         )
-: id(submitJob(scommand,sjobname,sproject,squeuename,numcpu,maxmem,sinfilename,soutfilename,serrfilename,hosts,cwd,tmpspace))
+: id(submitJob(scommand,sjobname,sproject,squeuename,numcpu,maxmem,sinfilename,soutfilename,serrfilename,hosts,cwd,tmpspace,model))
 {
 }
         		

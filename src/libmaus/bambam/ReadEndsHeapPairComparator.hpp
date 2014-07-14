@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_READENDSHEAPPAIRCOMPARATOR_HPP)
 #define LIBMAUS_BAMBAM_READENDSHEAPPAIRCOMPARATOR_HPP
 
@@ -25,15 +25,29 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * merge heap comparator for ReadEnds objects
+		 **/
 		struct ReadEndsHeapPairComparator
 		{
+			//! pair type of merge list index and ReadEnds object
 			typedef std::pair<uint64_t,ReadEnds> rpair;
 
+			/**
+			 * constructor
+			 **/
 			ReadEndsHeapPairComparator()
 			{
 			
 			}
 			
+			/**
+			 * compare two heap elements
+			 *
+			 * @param A first merge list, ReadEnds pair
+			 * @param B second merge list, ReadEnds pair
+			 * @return A.second>B.second if A.second != B.second, A.first < B.first otherwise
+			 **/
 			bool operator()(rpair const & A, rpair const & B) const
 			{
 				if ( A.second != B.second )

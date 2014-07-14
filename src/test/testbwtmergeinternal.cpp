@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/suffixsort/CircularBwt.hpp>
 #include <libmaus/lf/LF.hpp>
 
@@ -207,7 +207,47 @@ int testMergeTwo(unsigned int const k = 16)
 	return 0;
 }
 
+uint64_t frec(
+	uint64_t const n,
+	uint64_t const z,
+	unsigned int const c
+)
+{
+	uint64_t m = 0;
+	
+	if ( c > 1 )
+	{
+		for ( uint64_t i = 0; i < (n/z); ++i )
+			m = std::max(
+				m, 
+				i * c + (i*z-i) /* zero values */ + frec(n - i * z,z/2,c-1)
+			);
+	}
+	else
+	{
+		m = n;
+	}
+	
+	return m;
+}
+
+void f(uint64_t const n)
+{
+	uint64_t z = 1;
+	uint64_t n2;
+	unsigned int c = 1;
+	while ( (n2=(z<<1)) <= n )
+	{
+		z = n2;
+		++c;
+	}
+	
+	std::cerr << "n=" << n << " z=" << z << " c=" << c << " frec=" << frec(n,z,c) << std::endl;
+}
+
 int main()
 {
+	f(256);
+	return 0;
 	return testMergeTwo();
 }

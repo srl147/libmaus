@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/unique_ptr.hpp>
 #include <libmaus/autoarray/AutoArray.hpp>
@@ -49,7 +49,8 @@ void libmaus::util::SaturatingCounter::shrink()
 	/* shorten array */
 	B.resize( (n + 63)/64 );
 	/* set up rank dictionary */
-	rank = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(B.get(),B.size()*64)));
+	rank_ptr_type trank(new rank_type(B.get(),B.size()*64));
+	rank = UNIQUE_PTR_MOVE(trank);
 }
 		
 std::ostream & libmaus::util::operator<<(std::ostream & out, libmaus::util::SaturatingCounter const & S)

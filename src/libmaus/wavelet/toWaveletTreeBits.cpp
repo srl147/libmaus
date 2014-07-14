@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <deque>
 #include <libmaus/wavelet/toWaveletTreeBits.hpp>
@@ -352,12 +352,14 @@ namespace libmaus
 					std::cerr << "(a";					
 					for ( uint64_t h = 0; h < numpackets; ++h )
 					{
-						ACZ[h] = UNIQUE_PTR_MOVE(::libmaus::bitio::CompactArray::unique_ptr_type (
+						::libmaus::bitio::CompactArray::unique_ptr_type tACZ(
 							new ::libmaus::bitio::CompactArray( azeroes [ h+1 ] - azeroes[ h ], C->getB() - sb )
-							));
-						ACO[h] = UNIQUE_PTR_MOVE(::libmaus::bitio::CompactArray::unique_ptr_type (
+						);
+						ACZ[h] = UNIQUE_PTR_MOVE(tACZ);
+						::libmaus::bitio::CompactArray::unique_ptr_type tACO(
 							new ::libmaus::bitio::CompactArray( aones [ h+1 ] - aones[ h ], C->getB() - sb )
-							));
+						);
+						ACO[h] = UNIQUE_PTR_MOVE(tACO);
 					}
 					std::cerr << ")";
 

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,11 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_GAMMA_GAMMAGAPDECODER_HPP)
 #define LIBMAUS_GAMMA_GAMMAGAPDECODER_HPP
 
-#include <fstream>
 #include <libmaus/huffman/IndexDecoderDataArray.hpp>
 #include <libmaus/huffman/KvInitResult.hpp>
 #include <libmaus/gamma/GammaDecoder.hpp>
@@ -56,11 +55,10 @@ namespace libmaus
 				if ( fileptr < idda.data.size() && blockptr < idda.data[fileptr].numentries )
 				{
 					/* open file */
-					istr = UNIQUE_PTR_MOVE(
-						::libmaus::aio::CheckedInputStream::unique_ptr_type(
-							new ::libmaus::aio::CheckedInputStream(idda.data[fileptr].filename)
-						)
-					);
+					::libmaus::aio::CheckedInputStream::unique_ptr_type tistr(
+                                                        new ::libmaus::aio::CheckedInputStream(idda.data[fileptr].filename)
+                                                );
+					istr = UNIQUE_PTR_MOVE(tistr);
 
 					/* seek to block */
 					uint64_t const pos = idda.data[fileptr].getPos(blockptr);
@@ -75,24 +73,24 @@ namespace libmaus
 						throw ex;
 					}
 					
-					SGI = UNIQUE_PTR_MOVE(
-						::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(
-							new ::libmaus::aio::SynchronousGenericInput<uint64_t>(
-								*istr,64*1024,
-								::std::numeric_limits<uint64_t>::max(),
-								false /* do not check for multiples of entity size */
-							)
-						)
-					);
+					::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type tSGI(
+                                                        new ::libmaus::aio::SynchronousGenericInput<uint64_t>(
+                                                                *istr,64*1024,
+                                                                ::std::numeric_limits<uint64_t>::max(),
+                                                                false /* do not check for multiples of entity size */
+                                                        )
+                                                );
+					SGI = UNIQUE_PTR_MOVE(tSGI);
 					
-					GD = UNIQUE_PTR_MOVE(
-						::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >::unique_ptr_type(
-							new ::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >(*SGI)
-						)
-					);
+					::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >::unique_ptr_type tGD(
+                                                        new ::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >(*SGI)
+                                                );
+
+					GD = UNIQUE_PTR_MOVE(tGD);
 				}
 			}
 			
+			// total number of keys (length of gap array)
 			uint64_t getN() const
 			{
 				return idda.kvec.size() ? idda.kvec[idda.kvec.size()-1] : 0;
@@ -147,12 +145,21 @@ namespace libmaus
 				return *(pc++);	
 			}
 			
+			/* alias for decode() */
+			uint64_t get()
+			{
+				return decode();
+			}
+			
 			/* peek at next symbol without advancing decode pointer */
 			uint64_t peek()
 			{
 				if ( pc == pe )
-					decodeBlock();
-				assert ( pc != pe );
+				{
+					decodeBlock();				
+					assert ( pc != pe );
+				}
+				
 				return *pc;				
 			}
 			
@@ -203,6 +210,7 @@ namespace libmaus
 			{
 				result = ::libmaus::huffman::KvInitResult();
 			
+				// if stream is not empty
 				if ( 
 					(
 						(idda.kvec.size()!=0) 
@@ -211,6 +219,7 @@ namespace libmaus
 					) 
 				)
 				{
+					// if kv target is beyond end of file
 					if ( 
 						kvtarget >= 
 						idda.kvec[idda.kvec.size()-1] + idda.vvec[idda.vvec.size()-1]
@@ -226,6 +235,7 @@ namespace libmaus
 					}
 					else
 					{
+						// search for block
 						::libmaus::huffman::FileBlockOffset const FBO = idda.findKVBlock(kvtarget);
 						fileptr = FBO.fileptr;
 						blockptr = FBO.blockptr;
@@ -237,15 +247,14 @@ namespace libmaus
 						assert ( blockok );
 						
 						/* key/symbol offset of block (sum over elements of previous blocks) */
-						uint64_t kvoffset = idda.data[FBO.fileptr].getKeyValueCnt(FBO.blockptr);
-						uint64_t voffset = idda.data[FBO.fileptr].getValueCnt(FBO.blockptr);
-						uint64_t koffset = idda.data[FBO.fileptr].getKeyCnt(FBO.blockptr);
+						uint64_t kvoffset = idda.kvec[FBO.fileptr] + idda.vvec[FBO.fileptr] + idda.data[FBO.fileptr].getKeyValueCnt(FBO.blockptr);
+						uint64_t voffset  = idda.vvec[FBO.fileptr] +                          idda.data[FBO.fileptr].getValueCnt(FBO.blockptr);
+						uint64_t koffset  = idda.kvec[FBO.fileptr] +                          idda.data[FBO.fileptr].getKeyCnt(FBO.blockptr);
 						
 						assert ( kvtarget >= kvoffset );
 						kvtarget -= kvoffset;
 						
-						// std::cerr << "fileptr=" << fileptr << " blockptr=" << blockptr << " kvtarget=" << kvtarget << std::endl;
-						
+						// while we can skip the next key and its value
 						while ( kvtarget >= peek() + 1 )
 						{
 							uint64_t const gi = decode();
@@ -254,6 +263,8 @@ namespace libmaus
 							voffset += gi;
 							koffset += 1;
 						}
+						
+						// if we can process the last value
 						if ( koffset + 1 == getN() && kvtarget >= peek() )
 						{
 							uint64_t const gi = decode();
@@ -262,18 +273,23 @@ namespace libmaus
 							voffset  += gi;
 							koffset  += 0;
 						}
+						// otherwise adapt current value *pc
 						else
 						{
-							assert ( pc != pe );
 							assert ( kvtarget <= peek() );
+							assert ( pc != pe );
 							assert ( kvtarget <= *pc );
 
 							*pc -= kvtarget;
 						}
 						
+						// key offset
 						result.koffset  = koffset;
+						// value offset of key offset
 						result.voffset  = voffset;
+						// key/value offset of key
 						result.kvoffset = kvoffset;
+						// rest offset relative to original kvtarget
 						result.kvtarget = kvtarget;
 					}
 				}
@@ -301,7 +317,7 @@ namespace libmaus
 				::libmaus::huffman::KvInitResult & result 
 			)
 			:
-			  Pidda(UNIQUE_PTR_MOVE(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames))),
+			  Pidda(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames)),
 			  idda(*Pidda),
 			  /* buffer */
 			  decodebuf(), pa(0), pc(0), pe(0), 
@@ -317,7 +333,7 @@ namespace libmaus
 				uint64_t * psymoffset = 0
 			)
 			:
-			  Pidda(UNIQUE_PTR_MOVE(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames))),
+			  Pidda(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames)),
 			  idda(*Pidda),
 			  /* buffer */
 			  decodebuf(), pa(0), pc(0), pe(0), 
@@ -357,6 +373,46 @@ namespace libmaus
 				for ( uint64_t i = 0; i < filenames.size(); ++i )
 					s += getLength(filenames[i]);
 				return s;
+			}
+
+			struct iterator
+			{
+				GammaGapDecoder * owner;
+				uint64_t v;
+				
+				iterator()
+				: owner(0), v(0)
+				{
+				
+				}
+				iterator(GammaGapDecoder * rowner)
+				: owner(rowner), v(owner->decode())
+				{
+				
+				}
+				
+				uint64_t operator*() const
+				{
+					return v;
+				}
+				
+				iterator operator++(int)
+				{
+					iterator copy = *this;
+					v = owner->decode();
+					return copy;
+				}
+				
+				iterator operator++()
+				{
+					v = owner->decode();
+					return *this;
+				}
+			};
+			
+			iterator begin()
+			{
+				return iterator(this);
 			}
 		};
 	}

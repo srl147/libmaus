@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(RLENCODER_HPP)
 #define RLENCODER_HPP
@@ -192,9 +192,15 @@ namespace libmaus
 					
 					bool const cntesc = ::libmaus::huffman::EscapeCanonicalEncoder::needEscape(cntfreqs);
 					if ( cntesc )
-						esccntenc = UNIQUE_PTR_MOVE(::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::EscapeCanonicalEncoder(cntfreqs)));
+					{
+						::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type tesccntenc(new ::libmaus::huffman::EscapeCanonicalEncoder(cntfreqs));
+						esccntenc = UNIQUE_PTR_MOVE(tesccntenc);
+					}
 					else
-						cntenc = UNIQUE_PTR_MOVE(::libmaus::huffman::CanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::CanonicalEncoder(cnthist.getByType<int64_t>())));
+					{
+						::libmaus::huffman::CanonicalEncoder::unique_ptr_type tcntenc(new ::libmaus::huffman::CanonicalEncoder(cnthist.getByType<int64_t>()));
+						cntenc = UNIQUE_PTR_MOVE(tcntenc);
+					}
 
 					// std::cerr << "Writing block of size " << (pc-pa) << std::endl;
 					
@@ -273,6 +279,13 @@ namespace libmaus
 			{
 			
 			}
+
+			RLEncoderTemplate(std::string const & filename, unsigned int const /* albits */, uint64_t const n, uint64_t const bufsize)
+			: huffmanencoderfile_type(filename), RLEncoderBaseTemplate< huffmanencoderfile_type >(*this,n,bufsize)
+			{
+			
+			}
+			
 			~RLEncoderTemplate()
 			{
 				flush();
@@ -367,7 +380,7 @@ namespace libmaus
 				return ::libmaus::bitio::readElias2(SBIS);
 			}
 			
-			static void concatenate(std::vector<std::string> const & filenames, std::string const & outfilename)
+			static void concatenate(std::vector<std::string> const & filenames, std::string const & outfilename, bool const removeinput = false)
 			{
 				uint64_t const n = getLength(filenames);
 				huffmanencoderfile_type writer(outfilename);
@@ -377,7 +390,11 @@ namespace libmaus
 				
 				std::vector< IndexEntry > index;
 				for ( uint64_t i = 0; i < filenames.size(); ++i )
+				{
 					appendTemplate(writer,filenames[i],index);
+					if ( removeinput )
+						remove(filenames[i].c_str());
+				}
 				
 				writer.flushBitStream();
 

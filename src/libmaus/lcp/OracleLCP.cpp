@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include "OracleLCP.hpp"
+#include <libmaus/lcp/OracleLCP.hpp>
 
 static const uint32_t cover0[] = {0};
 static const uint32_t cover1[] = {0,1};
@@ -46,4 +46,5 @@ const uint32_t libmaus::lcp::OracleLCPBase::_cover_sizes[max_precomputed_cover+1
    sizeof(cover7)/sizeof(cover7[0]),
    sizeof(cover8)/sizeof(cover8[0])
 };
+
 

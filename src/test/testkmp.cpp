@@ -1,4 +1,5 @@
-/**
+
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,8 +16,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
+#include <libmaus/util/BorderArray.hpp>
+#include <libmaus/util/SuccinctBorderArray.hpp>
 #include <libmaus/util/KMP.hpp>
 #include <libmaus/random/Random.hpp>
 #include <libmaus/util/GetFileSize.hpp>
@@ -122,10 +125,29 @@ void findSplitCommon(
 		<< std::endl;
 }
 
+void testSuccinctBorderArray()
+{
+	bool const fibok = libmaus::util::SuccinctBorderArray::checkFibonacci(20);
+	assert ( fibok );
+	std::string const s = "abaababaaba";
+	libmaus::util::SuccinctBorderArray::check(s);
+}
+
+void testBorderArray()
+{
+	bool const fibok = libmaus::util::BorderArray<uint32_t>::checkFibonacci(20);
+	assert ( fibok );
+	std::string const s = "abaababaaba";
+	libmaus::util::BorderArray<uint32_t>::check(s);
+}
+
 int main(int argc, char * argv[])
 {
 	try
 	{
+		testBorderArray();
+		testSuccinctBorderArray();
+			
 		::libmaus::util::ArgInfo const arginfo(argc,argv);
 		std::string const fn = arginfo.getRestArg<std::string>(0);
 		

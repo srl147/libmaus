@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TRACECONTAINER_HPP)
 #define TRACECONTAINER_HPP
@@ -28,6 +28,13 @@ namespace libmaus
 	{
 		struct TraceContainer : public PenaltyConstants
 		{
+			private:
+			TraceContainer & operator=(TraceContainer const &);
+			TraceContainer(TraceContainer const &);
+		
+			public:
+			virtual ~TraceContainer() {}
+		
 			// trace
 			::libmaus::autoarray::AutoArray<step_type> trace;
 			//

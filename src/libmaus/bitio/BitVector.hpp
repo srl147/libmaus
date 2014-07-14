@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(BITVECTOR_HPP)
@@ -80,6 +80,8 @@ namespace libmaus
 			
 			}
 			BitVectorTemplate(uint64_t const rn, uint64_t const pad = 0) : n(rn), A( (n+bitsperword-1)/bitsperword + pad ) {}
+			
+			virtual ~BitVectorTemplate() {}
 			
 			data_type const * get() const
 			{
@@ -270,11 +272,13 @@ namespace libmaus
 			
 			rank_ptr_type index;
 		
-			IndexedBitVector(uint64_t const n, uint64_t const pad = 0) : BitVector(n,pad) {}
+			IndexedBitVector(uint64_t const n, uint64_t const pad = 0) : BitVector(n,pad), index() {}
+			IndexedBitVector(std::istream & in) : BitVector(in), index() {}
 			
 			void setupIndex()
 			{
-				index = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(A.get(),A.size()*64)));
+				rank_ptr_type tindex(new rank_type(A.get(),A.size()*64));
+				index = UNIQUE_PTR_MOVE(tindex);
 			}
 			
 			uint64_t rank1(uint64_t const i) const
@@ -330,11 +334,12 @@ namespace libmaus
 
 			rank_ptr_type index;
 		
-			IndexedBitVectorCompressed(uint64_t const n, uint64_t const pad = 0) : BitVector2(n,pad) {}
+			IndexedBitVectorCompressed(uint64_t const n, uint64_t const pad = 0) : BitVector2(n,pad), index() {}
 			
 			void setupIndex()
 			{
-				index = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(A.get(),A.size()*64)));
+				rank_ptr_type tindex(new rank_type(A.get(),A.size()*64));
+				index = UNIQUE_PTR_MOVE(tindex);
 			}
 			
 			uint64_t rank1(uint64_t const i) const

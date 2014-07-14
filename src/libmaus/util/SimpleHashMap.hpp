@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(SIMPLEHASHMAP_HPP)
 #define SIMPLEHASHMAP_HPP
@@ -26,6 +26,7 @@
 #include <libmaus/parallel/OMPLock.hpp>
 #include <libmaus/math/primes16.hpp>
 #include <libmaus/util/NumberSerialisation.hpp>
+#include <libmaus/parallel/SynchronousCounter.hpp>
 
 namespace libmaus
 {
@@ -40,6 +41,8 @@ namespace libmaus
 			{
 				return std::numeric_limits<key_type>::max();
 			}
+			
+			virtual ~SimpleHashMapConstants() {}
 		};
 			
 		template<typename _key_type, typename _value_type>
@@ -52,6 +55,7 @@ namespace libmaus
 			typedef std::pair<key_type,value_type> pair_type;
 			typedef SimpleHashMap<key_type,value_type> this_type;
 			typedef typename ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef typename ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
 
 			protected:
 			unsigned int slog;
@@ -70,6 +74,20 @@ namespace libmaus
 			::libmaus::parallel::OMPLock elock;
 			
 			public:
+			unique_ptr_type uclone() const
+			{
+				unique_ptr_type O(new this_type(slog));
+				std::copy(H.begin(),H.end(),O->H.begin());
+				return UNIQUE_PTR_MOVE(O);
+			}
+
+			shared_ptr_type sclone() const
+			{
+				shared_ptr_type O(new this_type(slog));
+				std::copy(H.begin(),H.end(),O->H.begin());
+				return O;
+			}
+
 			void serialise(std::ostream & out) const
 			{
 				::libmaus::util::NumberSerialisation::serialiseNumber(out,slog);
@@ -89,6 +107,8 @@ namespace libmaus
 			{
 			
 			}
+			
+			virtual ~SimpleHashMap() {}
 			
 			void clear()
 			{
@@ -161,7 +181,7 @@ namespace libmaus
 			}
 
 			SimpleHashMap(unsigned int const rslog)
-			: slog(rslog), hashsize(1ull << slog), hashmask(hashsize-1), fill(0), H(hashsize,false)
+			: slog(rslog), hashsize(1ull << slog), hashmask(hashsize-1), fill(0), H(hashsize,false), elock()
 			{
 				std::fill(H.begin(),H.end(),pair_type(base_type::unused(),value_type()));
 			}
@@ -184,6 +204,14 @@ namespace libmaus
 			double loadFactor() const
 			{
 				return static_cast<double>(fill) / H.size();
+			}
+			
+			void insertExtend(key_type const v, uint64_t const w, double const loadthres)
+			{
+				if ( loadFactor() >= loadthres || (fill == H.size()) )
+					extendInternal();
+				
+				insert(v,w);
 			}
 
 			// insert value and return count after insertion			
@@ -274,6 +302,34 @@ namespace libmaus
 					// correct value stored
 					else if ( H[p].first == v )
 					{
+						return true;
+					}
+					else
+					{
+						p = displace(p,v);
+					}
+				} while ( p != p0 );
+				
+				return false;
+			}
+
+			// returns true if value v is contained
+			bool contains(key_type const v, value_type & r) const
+			{
+				uint64_t const p0 = hash(v);
+				uint64_t p = p0;
+
+				do
+				{
+					// position in use?
+					if ( H[p].first == base_type::unused() )
+					{
+						return false;
+					}
+					// correct value stored
+					else if ( H[p].first == v )
+					{
+						r = H[p].second;
 						return true;
 					}
 					else

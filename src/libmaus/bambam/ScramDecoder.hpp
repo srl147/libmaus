@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_SCRAMDECODER_HPP)
 #define LIBMAUS_BAMBAM_SCRAMDECODER_HPP
 
@@ -23,9 +23,8 @@
 #include <iostream>
 #include <cstdlib>
 
-#if defined(LIBMAUS_HAVE_IO_LIB)
 #include <libmaus/bambam/Scram.h>
-#include <libmaus/bambam/BamAlignment.hpp>
+#include <libmaus/bambam/BamAlignmentDecoder.hpp>
 #include <libmaus/util/DynamicLoading.hpp>
 #include <libmaus/bambam/AlignmentValidity.hpp>
 
@@ -33,30 +32,48 @@ namespace libmaus
 {
 	namespace bambam
 	{
-		struct ScramDecoder
+		#if defined(LIBMAUS_HAVE_DL_FUNCS)
+		/**
+		 * scram decoder class; alignment decoder based on io_lib
+		 **/
+		struct ScramDecoder : public libmaus::bambam::BamAlignmentDecoder
 		{
+			//! this type
 			typedef ScramDecoder this_type;
+			//! unique pointer type
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			//! shared pointer type
 			typedef ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
 		
+			//! FastQ pattern type
 			typedef ::libmaus::fastx::FASTQEntry pattern_type;
 
+			private:
+			//! scram module
 			::libmaus::util::DynamicLibrary scram_mod;
+			//! decoder allocate function handle
 			::libmaus::util::DynamicLibraryFunction<libmaus_bambam_ScramDecoder_New_Type> d_new;
+			//! decoder allocate function handle with range
+			::libmaus::util::DynamicLibraryFunction<libmaus_bambam_ScramDecoder_New_Range_Type> d_new_range;
+			//! decoder deallocation function handle
 			::libmaus::util::DynamicLibraryFunction<libmaus_bambam_ScramDecoder_Delete_Type> d_delete;
+			//! decoder decoding function handle
 			::libmaus::util::DynamicLibraryFunction<libmaus_bambam_ScramDecoder_Decode_Type> d_decode;
 
+			//! scram decoder object
 			libmaus_bambam_ScramDecoder * dec;
 
+			//! bam header object
 			::libmaus::bambam::BamHeader bamheader;
-			::libmaus::bambam::BamAlignment alignment;
-			::libmaus::bambam::BamFormatAuxiliary auxiliary;
-					
-			uint64_t patid;
-			uint64_t rank;
-			bool putrank;
-			bool validate;
-			
+
+			/**
+			 * allocate scram decoder object; throws exception on failure
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @return decoder object
+			 **/					
 			libmaus_bambam_ScramDecoder * allocateDecoder(std::string const & filename, std::string const & mode, std::string const & reference)
 			{
 				libmaus_bambam_ScramDecoder * dec = d_new.func(filename.c_str(),mode.c_str(),reference.size() ? reference.c_str() : 0);
@@ -72,58 +89,51 @@ namespace libmaus
 				return dec;
 			}
 
-			ScramDecoder(std::string const & filename, std::string const & mode, std::string const & reference, bool const rputrank = false)
-			: 
-				scram_mod("libmaus_scram_mod.so"),
-				d_new(scram_mod,"libmaus_bambam_ScramDecoder_New"),
-				d_delete(scram_mod,"libmaus_bambam_ScramDecoder_Delete"),
-				d_decode(scram_mod,"libmaus_bambam_ScramDecoder_Decode"),
-				dec(allocateDecoder(filename,mode,reference)),
-				bamheader(std::string(dec->header,dec->header+dec->headerlen)),
-				patid(0), rank(0), putrank(rputrank), validate(true)
+			/**
+			 * allocate scram decoder object with range; throws exception on failure
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @return decoder object
+			 **/					
+			libmaus_bambam_ScramDecoder * allocateDecoder(
+				std::string const & filename, std::string const & mode, std::string const & reference,
+				std::string const & ref,
+				int64_t const start,
+				int64_t const end
+			)
 			{
-			}
+				if ( mode != "rc" )
+				{				
+					::libmaus::exception::LibMausException se;
+					se.getStream() << "ScramDecoder: failed to open file " << filename << " in mode " << mode 
+						<< " with range (" << ref << "," << start << "," << end << "), "
+						<< "ranges are only supported for CRAM input" << std::endl;
+					se.finish();
+					throw se;
+				}
 			
-			~ScramDecoder()
-			{
-				d_delete.func(dec);
-			}
-
-			void disableValidation()
-			{
-				validate = false;
-			}
-			
-			::libmaus::bambam::BamAlignment::unique_ptr_type ualignment() const
-			{
-				return UNIQUE_PTR_MOVE(alignment.uclone());
-			}
-			
-			::libmaus::bambam::BamAlignment::shared_ptr_type salignment() const
-			{
-				return alignment.sclone();
-			}
-
-			std::string formatAlignment()
-			{
-				return alignment.formatAlignment(bamheader,auxiliary);
-			}
-			
-			std::string formatFastq()
-			{
-				return alignment.formatFastq(auxiliary);
-			}
-			
-			void putRank()
-			{
-				uint64_t const lrank = rank++;
-				if ( putrank )
+				libmaus_bambam_ScramDecoder * dec = d_new_range.func(
+					filename.c_str(),mode.c_str(),reference.size() ? reference.c_str() : 0,
+					ref.c_str(),
+					start,end
+				);
+				
+				if ( ! dec )
 				{
-					alignment.putRank("ZR",lrank /*,bamheader */);
-				}			
-			}
+					::libmaus::exception::LibMausException se;
+					se.getStream() << "ScramDecoder: failed to open file " << filename << " in mode " << mode 
+						<< " with range (" << ref << "," << start << "," << end << ")"
+						<< std::endl;
+					se.finish();
+					throw se;
+				}
 			
-			bool readAlignment(bool const delayPutRank = false)
+				return dec;
+			}
+
+			bool readAlignmentInternal(bool const delayPutRank = false)
 			{
 				int const r = d_decode.func(dec);
 				
@@ -164,19 +174,132 @@ namespace libmaus
 			
 				return true;
 			}
-			
-			bool getNextPatternUnlocked(pattern_type & pattern)
+
+			public:
+			/**
+			 * constructor
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @param rputrank put rank (line number) on alignments
+			 **/
+			ScramDecoder(std::string const & filename, std::string const & mode, std::string const & reference, bool const rputrank = false)
+			: 
+				libmaus::bambam::BamAlignmentDecoder(rputrank),
+				scram_mod("libmaus_scram_mod.so"),
+				d_new(scram_mod,"libmaus_bambam_ScramDecoder_New"),
+				d_new_range(scram_mod,"libmaus_bambam_ScramDecoder_New_Range"),
+				d_delete(scram_mod,"libmaus_bambam_ScramDecoder_Delete"),
+				d_decode(scram_mod,"libmaus_bambam_ScramDecoder_Decode"),
+				dec(allocateDecoder(filename,mode,reference)),
+				bamheader(std::string(dec->header,dec->header+dec->headerlen))
 			{
-				if ( !readAlignment() )
-					return false;
-				
-				alignment.toPattern(pattern,patid++);
-				
-				return true;
+			}
+
+			/**
+			 * constructor
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @param ref name of reference sequence for range
+			 * @param start range start
+			 * @param end range end
+			 * @param rputrank put rank (line number) on alignments
+			 **/
+			ScramDecoder(std::string const & filename, std::string const & mode, std::string const & reference,
+				std::string const & ref,
+				int64_t const start,
+				int64_t const end,
+				bool const rputrank = false)
+			: 
+				libmaus::bambam::BamAlignmentDecoder(rputrank),
+				scram_mod("libmaus_scram_mod.so"),
+				d_new(scram_mod,"libmaus_bambam_ScramDecoder_New"),
+				d_new_range(scram_mod,"libmaus_bambam_ScramDecoder_New_Range"),
+				d_delete(scram_mod,"libmaus_bambam_ScramDecoder_Delete"),
+				d_decode(scram_mod,"libmaus_bambam_ScramDecoder_Decode"),
+				dec(allocateDecoder(filename,mode,reference,ref,start,end)),
+				bamheader(std::string(dec->header,dec->header+dec->headerlen))
+			{
+			}
+			
+			/**
+			 * destructor
+			 **/
+			~ScramDecoder()
+			{
+				d_delete.func(dec);
+			}
+
+			/**
+			 * @return BAM header
+			 **/
+			libmaus::bambam::BamHeader const & getHeader() const
+			{
+				return bamheader;
 			}
 		};
+
+		/**
+		 * class wrapping a ScramDecoder object
+		 **/		
+		struct ScramDecoderWrapper : public libmaus::bambam::BamAlignmentDecoderWrapper
+		{
+			//! wrapped object
+			ScramDecoder scramdec;
+
+			/**
+			 * constructor
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @param rputrank put rank (line number) on alignments
+			 **/
+			ScramDecoderWrapper(
+				std::string const & filename, 
+				std::string const & mode, 
+				std::string const & reference, 
+				bool const rputrank = false
+			)
+			: scramdec(filename,mode,reference,rputrank)
+			{
+			
+			}
+			/**
+			 * constructor
+			 *
+			 * @param filename input filename, - for stdin
+			 * @param mode file mode r (SAM), rb (BAM) or rc (CRAM)
+			 * @param reference reference file name (empty string for none)
+			 * @param ref name of reference sequence for range
+			 * @param start range start
+			 * @param end range end
+			 * @param rputrank put rank (line number) on alignments
+			 **/
+			ScramDecoderWrapper(
+				std::string const & filename, 
+				std::string const & mode, 
+				std::string const & reference, 
+				std::string const & ref,
+				int64_t const start,
+				int64_t const end,
+				bool const rputrank = false
+			)
+			: scramdec(filename,mode,reference,ref,start,end,rputrank)
+			{
+			
+			}
+			
+			libmaus::bambam::BamAlignmentDecoder & getDecoder()
+			{
+				return scramdec;
+			}
+		};
+		#endif
 	}
 }
-#endif
 #endif
 

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if !defined(SUFFIXPREFIX_HPP)
 #define SUFFIXPREFIX_HPP
@@ -111,7 +111,7 @@ namespace libmaus
 
 				element_type * pl = p;
 				element_type * plmax = p;
-				similarity_type maxinfixscore = std::numeric_limits<similarity_type>::min();
+				// similarity_type maxinfixscore = std::numeric_limits<similarity_type>::min();
 
 				if ( m )
 				{
@@ -213,7 +213,7 @@ namespace libmaus
 					p++;
 					q++;
 				
-					maxinfixscore = plmax->first;	
+					// maxinfixscore = plmax->first;	
 				}
 				
 				// length of suffix of b we do not use
@@ -422,6 +422,17 @@ namespace libmaus
 			{
 				SuffixPrefixAlignmentPrint::printAlignmentLines(out,a,b,SPR,rlinewidth,ta,te);
 				return out;
+			}
+			
+			bool startsWithDeletion() const
+			{
+				return
+					(te!=ta) && (*ta == STEP_DEL);
+			}
+			bool endsWithInsertion() const
+			{
+				return
+					(te!=ta) && (te[-1] == STEP_INS);
 			}
 		};
 

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(NUMBITS_HPP)
 #define NUMBITS_HPP
@@ -60,18 +60,25 @@ namespace libmaus
 		
 		struct NumBits8
 		{
+			private:
+			NumBits8 & operator=(NumBits8 const &);
+			NumBits8(NumBits8 const &);
+		
+			protected:
 			::libmaus::autoarray::AutoArray<unsigned int> T;
 			
+			public:
 			NumBits8() : T(256)
 			{
 				for ( unsigned int i = 0; i < T.size(); ++i )
 					T[i] = ::libmaus::math::numbits(i);
 			}
+			virtual ~NumBits8() {}
 			
 			unsigned int operator()(unsigned int const i) const
 			{
 				return T[i];
-			}
+			}			
 		};
 		
 		struct NumBits32 : public NumBits8

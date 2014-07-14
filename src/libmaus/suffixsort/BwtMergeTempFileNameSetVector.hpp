@@ -1,5 +1,5 @@
 /**
-    suds
+    libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
 
@@ -27,12 +27,15 @@ namespace libmaus
 	{
 		struct BwtMergeTempFileNameSetVector
 		{
+			private:
 			std::vector < ::libmaus::suffixsort::BwtMergeTempFileNameSet > V;
 			
-			BwtMergeTempFileNameSetVector(std::string const & tmpfilenamebase, uint64_t const num)
+			public:
+			BwtMergeTempFileNameSetVector(std::string const & tmpfilenamebase, uint64_t const num, uint64_t const numbwt, uint64_t const numgt)
+			: V(num)
 			{
 				for ( uint64_t i = 0; i < num; ++i )
-					V.push_back(::libmaus::suffixsort::BwtMergeTempFileNameSet(tmpfilenamebase,i));
+					V[i] = ::libmaus::suffixsort::BwtMergeTempFileNameSet(tmpfilenamebase,i,numbwt,numgt);
 			}
 			
 			::libmaus::suffixsort::BwtMergeTempFileNameSet const & operator[](size_t i) const
@@ -43,3 +46,4 @@ namespace libmaus
 	}
 }
 #endif
+

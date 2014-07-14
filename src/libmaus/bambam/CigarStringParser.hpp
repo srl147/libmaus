@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_BAMBAM_CIGARSTRINGPARSER_HPP)
 #define LIBMAUS_BAMBAM_CIGARSTRINGPARSER_HPP
@@ -28,8 +28,17 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * class for parsing cigar strings to cigar operation vectors
+		 **/
 		struct CigarStringParser
-		{
+		{	
+			/**
+			 * parse cigar string
+			 *
+			 * @param cigar SAM type string representation of cigar
+			 * @return encoded cigar operation vector (pairs of operation and length)
+			 **/
 			static std::vector<cigar_operation> parseCigarString(std::string cigar);
 		};
 	}

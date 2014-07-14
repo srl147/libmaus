@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_NETWORK_LOGRECEIVERDISPATCHERBASE_HPP)
 #define LIBMAUS_NETWORK_LOGRECEIVERDISPATCHERBASE_HPP
 
@@ -32,6 +32,7 @@ namespace libmaus
 		struct DispatchCallback
 		{
 			virtual int operator()(::libmaus::util::ArgInfo const &, int const) = 0;
+			virtual ~DispatchCallback() {}
 		};
 			
 		struct StringRecDispatchCallback : public DispatchCallback
@@ -90,7 +91,8 @@ namespace libmaus
 					
 				for ( uint64_t i = 0; i < args.size(); ++i )
 				{
-					wargv[i] = UNIQUE_PTR_MOVE(string_ptr_type(new string_type(args[i])));
+					string_ptr_type twargvi(new string_type(args[i]));
+					wargv[i] = UNIQUE_PTR_MOVE(twargvi);
 					aargv[i] = wargv[i]->A.get();
 				}
 					
@@ -157,12 +159,10 @@ namespace libmaus
 					::libmaus::util::LogPipeMultiplexGeneric LPMG(loghostname,port,sid,id);
 					
 					// connect
-					::libmaus::network::ClientSocket::unique_ptr_type controlsock = UNIQUE_PTR_MOVE(
-							::libmaus::network::ClientSocket::unique_ptr_type(
+					::libmaus::network::ClientSocket::unique_ptr_type controlsock(
 								new ::libmaus::network::ClientSocket(
 									port,loghostname.c_str()
 								)
-							)
 						);
 							
 					// write session id

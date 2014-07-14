@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,9 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
-
-
+*/
 #if ! defined(METAOUTPUTFILE8ARRAY_HPP)
 #define METAOUTPUTFILE8ARRAY_HPP
 
@@ -32,38 +30,78 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * class implementing array of MetaOutputBuffer8 objects
+		 **/
 		struct MetaOutputFile8Array
 		{
+			//! buffer type
 			typedef libmaus::aio::MetaOutputBuffer8 buffer_type;
+			//! buffer pointer type
 			typedef ::libmaus::util::unique_ptr<buffer_type>::type buffer_ptr_type;
+			//! this type
 			typedef MetaOutputFile8Array this_type;
+			//! unique pointer type
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 
+			//! hash intervals
 			std::vector< std::pair<uint64_t,uint64_t> > HI;
+			//! output file prefix
 			std::string const fileprefix;
 
+			//! output buffers
 			::libmaus::autoarray::AutoArray<buffer_ptr_type> buffers;
+			//! output filenames for splitting
 			std::vector < std::string > filenames;
 
+			//! concatenated file name
 			std::string const concfilename;
+			//! writer for concatenated file
 			::libmaus::aio::AsynchronousWriter W;
 
+			//! interval tree for hash intervals
 			::libmaus::util::IntervalTree IT;
 
+			private:
+			/**
+			 * todo triple for list merging
+			 **/
 			struct TodoTriple
 			{
+				//! file name
 				std::string filename;
+				//! id mask
 				uint64_t mask;
+				//! contained ids
 				std::set < uint64_t > ids;
 
+				/**
+				 * constructor
+				 **/
 				TodoTriple() : mask(0) {}
+				/**
+				 * constructor by parameters
+				 * 
+				 * @param rfilename file name
+				 * @param rmask id mask
+				 * @param rids contained id set
+				 **/
 				TodoTriple(std::string const & rfilename, uint64_t const rmask, std::set < uint64_t > rids )
 				: filename(rfilename), mask(rmask), ids(rids) {}
 			};
 
-			MetaOutputFile8Array(std::vector< std::pair<uint64_t,uint64_t> > const & rHI, std::string const rfileprefix)
-			: HI(rHI), fileprefix(rfileprefix), buffers(HI.size()), concfilename ( fileprefix + ".conc" ), W(concfilename,16),
-			  IT(HI,0,HI.size())
+			public:
+			/**
+			 * construct from hash intervals and file prefix
+			 *
+			 * @param rHI hash intervals
+			 * @param rfileprefix prefix for output file names
+			 **/
+			MetaOutputFile8Array(
+				std::vector< std::pair<uint64_t,uint64_t> > const & rHI, std::string const rfileprefix
+			)
+			: HI(rHI), fileprefix(rfileprefix), buffers(HI.size()), concfilename ( fileprefix + ".conc" ), 
+			  W(concfilename,16), IT(HI,0,HI.size())
 			{
 				for ( uint64_t i = 0; i < HI.size(); ++i )
 				{
@@ -76,10 +114,18 @@ namespace libmaus
 					buffers[i] = buffer_ptr_type(new buffer_type(W,64*1024,i));
 				}
 			}
+			/**
+			 * destructor
+			 **/
 			~MetaOutputFile8Array()
 			{
 			}
 
+			/**
+			 * count number of different block meta ids in file filename
+			 *
+			 * @param filename name of input file
+			 **/
 			static std::set < uint64_t > countIds(std::string const & filename)
 			{
 				GenericInput<uint64_t> in(filename, 4*1024);
@@ -106,6 +152,12 @@ namespace libmaus
 				return ids;
 			}
 
+			/**
+			 * get name of next temp file
+			 *
+			 * @param nextid current id (will be incremented by call)
+			 * @return temporary filename
+			 **/
 			std::string getNextTempName(uint64_t & nextid)
 			{
 				std::ostringstream ostr;
@@ -113,6 +165,12 @@ namespace libmaus
 				return ostr.str();
 			}
 
+			/**
+			 * check if file filename exists
+			 *
+			 * @param filename name of file
+			 * @return true iff file exists
+			 **/
 			static bool fileExists(std::string const & filename)
 			{
 				std::ifstream istr(filename.c_str(), std::ios::binary);
@@ -127,10 +185,17 @@ namespace libmaus
 				}
 			}
 
+			/**
+			 * flush output streams and split final output according to hash values/intervals
+			 * 
+			 * @param cerrlock lock for debug/verbosity output
+			 * @param threadnum thread id for debug/verbosity output
+			 **/
 			void flush(::libmaus::parallel::OMPLock & cerrlock, uint64_t const threadnum)
 			{
 				if ( fileExists(concfilename) )
 				{
+					// flush all buffers
 					for ( uint64_t i = 0; i < buffers.getN(); ++i )
 						if ( buffers[i].get() )
 						{
@@ -254,6 +319,13 @@ namespace libmaus
 						ostr.close();
 					}
 			}
+			
+			/**
+			 * get buffer for hash value hashval
+			 *
+			 * @param hashval hash value
+			 * @return buffer for hashval
+			 **/
 			buffer_type & getBuffer(uint64_t const hashval)
 			{
 				uint64_t const i = IT.find(hashval);

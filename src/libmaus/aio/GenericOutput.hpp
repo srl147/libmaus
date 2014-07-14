@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(LIBMAUS_AIO_GENERICOUTPUT_HPP)
@@ -33,18 +33,36 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * class for asynchronously writing a sequence of elements of type data_type
+		 **/
 		template<typename data_type>
                 struct GenericOutput
                 {
+                	//! this type
                         typedef GenericOutput this_type;
+                        //! unique pointer type
 			typedef typename ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
                 
+			private:
+			//! buffer
                         ::libmaus::autoarray::AutoArray<data_type> B;
+                        //! start of buffer pointer
                         data_type * const pa;
+                        //! buffer current pointer
                         data_type * pc;
+                        //! buffer end pointer
                         data_type * const pe;
+                        //! asynchronous byte stream writer
                         ::libmaus::aio::AsynchronousWriter W;
 
+                        public:
+                        /**
+                         * write array A to file outputfilename
+                         *
+                         * @param A array to be written
+                         * @param outputfilename name of output file
+                         **/
 			static void writeArray(::libmaus::autoarray::AutoArray<data_type> const & A, 
 				std::string const & outputfilename)
 			{
@@ -56,19 +74,30 @@ namespace libmaus
 				out.flush();
 			}
 
-
+			/**
+			 * constructor
+			 *
+			 * @param filename output file name
+			 * @param bufsize size of buffer in elements
+			 **/
                         GenericOutput(std::string const & filename, uint64_t const bufsize)
                         : B(bufsize), pa(B.get()), pc(pa), pe(pa+B.getN()), W(filename,16)
                         {
 
                         }
 
+                        /**
+                         * flush buffer and underlying file
+                         **/
                         void flush()
                         {
                                 writeBuffer();
                                 W.flush();
                         }
 
+                        /**
+                         * write buffer to asynchronous output stream
+                         **/
                         void writeBuffer()
                         {
                                 W.write ( 
@@ -77,6 +106,11 @@ namespace libmaus
                                 pc = pa;
                         }
 
+                        /**
+                         * put a single element c in the buffer
+                         *
+                         * @param c element to be put in buffer
+                         **/
                         void put(uint64_t const c)
                         {
                                 *(pc++) = c;

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/IncreasingList.hpp>
 
@@ -26,7 +26,8 @@ uint64_t libmaus::util::IncreasingList::byteSize() const
 			
 void libmaus::util::IncreasingList::setup()
 {
-	R = UNIQUE_PTR_MOVE(::libmaus::rank::ERank222B::unique_ptr_type(new ::libmaus::rank::ERank222B(Bup.get(),Bup.size()*64)));
+	::libmaus::rank::ERank222B::unique_ptr_type tR(new ::libmaus::rank::ERank222B(Bup.get(),Bup.size()*64));
+	R = UNIQUE_PTR_MOVE(tR);
 }
 
 libmaus::util::IncreasingList::IncreasingList(uint64_t const rn, uint64_t const rb)

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(ENCODETABLE_HPP)
 #define ENCODETABLE_HPP
@@ -47,6 +47,14 @@ namespace libmaus
 			int64_t maxsym;
 			::libmaus::autoarray::AutoArray< ::std::pair < libmaus::uint::UInt < words >, unsigned int > > codes;
 			::std::vector<bool> codeused;
+			
+			uint64_t byteSize() const
+			{
+				return
+					2*sizeof(uint64_t) +
+					codes.byteSize() + 
+					(codeused.size() + 7)/8;
+			}
 		
 			bool getBitFromTop(int64_t sym, unsigned int bit) const
 			{

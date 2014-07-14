@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if !defined(BALANCEDPARENTHESES_HPP)
 #define BALANCEDPARENTHESES_HPP
 
@@ -386,7 +386,7 @@ struct BalancedParentheses : public BalancedParenthesesBase
 	  // first level pioneer data
 	  pion0(BalancedParenthesesBase::calculatePioneerBitVectorNND(UUB,blocksize)),
 	  // pion0(BalancedParenthesesBase::calculatePioneerBitVector(UUB, blocksize)),
-	  pio0(UNIQUE_PTR_MOVE(BalancedParenthesesBase::extractPioneerFamily(UUB,*pion0))),
+	  pio0(BalancedParenthesesBase::extractPioneerFamily(UUB,*pion0)),
 	  // second level pioneer data
 	  pion1(BalancedParenthesesBase::calculatePioneerBitVectorNND(*pio0,blocksize)),
 	  // pion1(BalancedParenthesesBase::calculatePioneerBitVector(*pio0, blocksize)),

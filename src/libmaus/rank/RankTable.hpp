@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(RANKTABLE_HPP)
 #define RANKTABLE_HPP
@@ -38,6 +38,9 @@ namespace libmaus
 			private:
 			uint8_t const * const table;
 			static uint8_t * generateTable();
+			
+			RankTable & operator=(RankTable const &);
+			RankTable(RankTable const &);
 			
 			public:
 			/**
@@ -73,6 +76,9 @@ namespace libmaus
 			private:
 			uint8_t const * const table;
 			static uint8_t * generateTable();
+			
+			SimpleRankTable & operator=(SimpleRankTable const &);
+			SimpleRankTable(SimpleRankTable const &);
 			
 			public:
 			/**

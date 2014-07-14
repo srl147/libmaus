@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(POSIXSEMAPHORE_HPP)
 #define POSIXSEMAPHORE_HPP
@@ -42,6 +42,11 @@ namespace libmaus
 	{
 		struct NamedPosixSemaphore
 		{
+			private:
+			NamedPosixSemaphore & operator=(NamedPosixSemaphore const &);
+			NamedPosixSemaphore(NamedPosixSemaphore const &);
+		
+			public:
 			std::string const semname;
 			bool const primary;
 			sem_t * psemaphore;
@@ -56,7 +61,7 @@ namespace libmaus
 			}
 			
 			NamedPosixSemaphore(std::string const & rsemname, bool rprimary)
-			: semname(rsemname), primary(rprimary)
+			: semname(rsemname), primary(rprimary), psemaphore(0)
 			{
 				if ( primary )
 					psemaphore = sem_open(semname.c_str(), O_CREAT | O_EXCL, 0700, 0);
@@ -80,13 +85,74 @@ namespace libmaus
 
                         void post()
                         {
-                                sem_post ( psemaphore );
+                        	while ( sem_post ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::post(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	}
                         }
 
                         void wait()
                         {
-                                sem_wait ( psemaphore );
-                        }
+                        	while ( sem_wait ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::wait(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	
+                        	}
+			}
+
+                        bool trywait()
+                        {
+                        	while ( sem_trywait ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EAGAIN:
+                        				return false;
+                        				break;
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::trywait(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	}
+                        	
+                        	return true;
+			}
+
+
                         int getValue()
                         {
                         	int v = 0;
@@ -112,13 +178,22 @@ namespace libmaus
 	
                 struct PosixSemaphore
                 {
+                	typedef PosixSemaphore this_type;
+                	typedef libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+                	typedef libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+                
 			#if defined(__APPLE__)
 			std::string semname;
 			#endif
 		        sem_t semaphore;
 			sem_t * psemaphore;
-
-                        PosixSemaphore()
+			
+			private:
+			PosixSemaphore(PosixSemaphore const &);
+			PosixSemaphore operator=(PosixSemaphore const &);
+			
+			public:
+                        PosixSemaphore() : semaphore(), psemaphore(0)
                         {
 				#if defined(__APPLE__)
 				std::ostringstream semnamestr;
@@ -160,13 +235,72 @@ namespace libmaus
 
                         void post()
                         {
-                                sem_post ( psemaphore );
+                        	while ( sem_post ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::post(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	}
                         }
 
                         void wait()
                         {
-                                sem_wait ( psemaphore );
-                        }
+                        	while ( sem_wait ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::wait(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	
+                        	}
+			}
+
+                        bool trywait()
+                        {
+                        	while ( sem_trywait ( psemaphore ) != 0 )
+                        	{
+                        		int const lerrno = errno;
+                        		
+                        		switch ( lerrno )
+                        		{
+                        			case EAGAIN:
+                        				return false;
+                        				break;
+                        			case EINTR:
+							break;
+						default:
+						{
+							libmaus::exception::LibMausException se;
+							se.getStream() << "PosixSemaphore::trywait(): " << strerror(lerrno) << std::endl;
+							se.finish();
+							throw se;
+						}
+                        		}
+                        	}
+                        	
+                        	return true;
+			}
                         
                         bool timedWait()
                         {

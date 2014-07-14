@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
+
+#include <libmaus/bitio/BitVectorInput.hpp>
+#include <libmaus/bitio/BitVectorOutput.hpp>
 
 #include <libmaus/bitio/CompactArray.hpp>
 #include <libmaus/bitio/SwapWordBitBlock.hpp>
@@ -159,7 +162,7 @@ void testGetPut64()
 
 void sortCheck()
 {
-#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8)
+#if defined(__GNUC__) && ( __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8) ) && (!defined(__clang__))
 	std::cerr << "Testing sort using CompactArrayIterator...";
 	
 	srand(time(0));
@@ -278,7 +281,7 @@ void bubbleSortCheck()
 
 void stableSortCheck()
 {
-#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
+#if defined(__GNUC__) && ( (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)) && (! defined(__clang__)) )
 	srand(time(0));
 
 	for ( unsigned int i = 0; i < 1000; ++i )
@@ -316,7 +319,7 @@ void stableSortCheck()
 
 void sortSparseCheck()
 {
-#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8)
+#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))  && (! defined(__clang__))
 	srand(time(0));
 
 	for ( unsigned int i = 0; i < 1000; ++i )
@@ -370,7 +373,7 @@ void sortSparseCheck()
 
 void sortStableSparseCheck()
 {
-#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
+#if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)) && (! defined(__clang__))
 	srand(time(0));
 
 	for ( unsigned int i = 0; i < 1000; ++i )
@@ -534,19 +537,147 @@ struct UIntProjector
 	}
 };
 
+#include <libmaus/bitio/MarkerFastWriteBitWriter.hpp>
+
+void testMarkerBitIO()
+{
+	std::ostringstream ostr;
+	std::ostream_iterator<uint8_t> ostrit(ostr);
+	libmaus::bitio::MarkerFastWriteBitWriterStream8 W(ostrit);
+	
+	uint64_t const n = 16*1024*1024;
+	
+	for ( uint64_t i = 0; i < n; ++i )
+		W.write( i & 0xFF, 8 );
+	W.flush();
+	
+	std::cerr << "size of stream is " << ostr.str().size() << std::endl;
+	
+	libmaus::timing::RealTimeClock rtc; rtc.start();
+	uint64_t const loop = 32;
+	std::istringstream istr(ostr.str());
+
+	for ( uint64_t l = 0; l < loop; ++l )
+	{
+		istr.clear();
+		istr.seekg(0);
+		libmaus::bitio::MarkerStreamBitInputStream R(istr);
+	
+		for ( uint64_t i = 0; i < n; ++i )
+		{
+			//std::cout << R.read(8) << std::endl;
+			assert ( R.read(8) == (i & 0xFF) );
+		}
+	}
+	
+	double const secs = rtc.getElapsedSeconds();
+	
+	std::cerr << "MarkerStreamBitInputStream decoding speed " << (static_cast<double>(loop*n)/(1024.0*1024.0)) / secs << " MB/s" << std::endl;
+}
+
+void testMarkerBitIO4()
+{
+	std::ostringstream ostr;
+	libmaus::aio::SynchronousGenericOutput<uint32_t> SGO(ostr,8*1024);
+	libmaus::bitio::MarkerFastWriteBitWriterBuffer32Sync W(SGO);
+	
+	uint64_t const n = 16*1024*1024;
+	
+	for ( uint64_t i = 0; i < n; ++i )
+		W.write( i & 0xFF, 8 );
+	W.flush();
+	
+	std::cerr << "size of stream is " << ostr.str().size() << std::endl;
+	
+	#if 0
+	libmaus::timing::RealTimeClock rtc; rtc.start();
+	uint64_t const loop = 32;
+	std::istringstream istr(ostr.str());
+
+	for ( uint64_t l = 0; l < loop; ++l )
+	{
+		istr.clear();
+		istr.seekg(0);
+		libmaus::bitio::MarkerStreamBitInputStream R(istr);
+	
+		for ( uint64_t i = 0; i < n; ++i )
+		{
+			//std::cout << R.read(8) << std::endl;
+			assert ( R.read(8) == (i & 0xFF) );
+		}
+	}
+	
+	double const secs = rtc.getElapsedSeconds();
+	
+	std::cerr << "MarkerStreamBitInputStream decoding speed " << (static_cast<double>(loop*n)/(1024.0*1024.0)) / secs << " MB/s" << std::endl;
+	#endif
+}
+
+void testBitVectorIO()
+{
+	srand(5);
+	libmaus::bitio::BitVectorOutput bout0("t0");
+	libmaus::bitio::BitVectorOutput bout1("t1");
+
+	std::vector<bool> bits;		
+
+	uint64_t n0 = 512;
+	for ( uint64_t i = 0; i < n0; ++i )
+	{
+		bool const bit = rand() % 2 == 1;
+		bits.push_back(bit);
+		bout0.writeBit(bit);
+	}
+	bout0.flush();
+
+	uint64_t n1 = 1024;
+	for ( uint64_t i = 0; i < n1; ++i )
+	{
+		bool const bit = rand() % 2 == 1;
+		bits.push_back(bit);
+		bout1.writeBit(bit);
+	}	
+	bout1.flush();	
+	
+	std::vector<std::string> V;
+	V.push_back("t0");
+	V.push_back("t1");
+	libmaus::bitio::BitVectorInput bin(V);
+	
+	for ( uint64_t i = 0; i < n0+n1; ++i )
+	{
+		bool const bit = bin.readBit();
+		assert ( bit == bits[i] );
+	}
+	
+	for ( uint64_t offset = 0; offset <= n0+n1; ++offset )
+	{
+		// std::cerr << "offset=" << offset << std::endl;
+		libmaus::bitio::BitVectorInput bin(V,offset);
+		
+		for ( uint64_t j = offset; j < n0+n1; ++j )
+		{
+			bool const bit = bin.readBit();
+			assert ( bit == bits[j] );
+		}
+	}
+	
+	remove("t0");
+	remove("t1");
+}
                      
 int main()
 {
 	try
 	{
-		{
-		::libmaus::bitio::BitVector B(17);
-		std::cerr << B << std::endl;
-		B[5] = true;
-		std::cerr << B << std::endl;
-		std::cerr << B[5] << std::endl;
-		}
-	
+		testBitVectorIO();
+		
+		#if 0
+		testMarkerBitIO4();		
+		return 0;
+		#endif
+		
+		testMarkerBitIO();	
 		testBlockSwap();
 		
 		// libmaus::bitio::CompactArrayBase::printglobaltables();

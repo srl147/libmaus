@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(IMPEXTERNALWAVELETGENERATORHUFFMAN_HPP)
 #define IMPEXTERNALWAVELETGENERATORHUFFMAN_HPP
@@ -31,6 +31,7 @@
 #include <libmaus/rank/ImpCacheLineRank.hpp>
 #include <libmaus/aio/CheckedOutputStream.hpp>
 #include <libmaus/aio/CheckedInputStream.hpp>
+#include <libmaus/util/TempFileContainer.hpp>
 
 #include <libmaus/util/unordered_map.hpp>
 
@@ -43,21 +44,30 @@ namespace libmaus
 			typedef ImpExternalWaveletGeneratorHuffman this_type;
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 			
+			// rank type
 			typedef ::libmaus::rank::ImpCacheLineRank rank_type;
+			// bit output stream contexts
 			typedef rank_type::WriteContextExternal context_type;
+			// pointer to output context
 			typedef context_type::unique_ptr_type context_ptr_type;
+			// vector of contexts
 			typedef ::libmaus::autoarray::AutoArray<context_ptr_type> context_vector_type;
+			// pair of context pointer and bit
 			typedef std::pair < context_type * , bool > bit_type;
+			// vector of bit type
 			typedef ::libmaus::autoarray::AutoArray < bit_type > bit_vector_type;
+			// vector of bit vector type
 			typedef ::libmaus::autoarray::AutoArray < bit_vector_type > bit_vectors_type;
 
 			private:
 			static uint64_t const bufsize = 64*1024;
 		
 			::libmaus::huffman::HuffmanTreeNode const * root;
-			::libmaus::util::TempFileNameGenerator & tmpgen;
+			::libmaus::util::TempFileContainer & tmpcnt;
+			// ::libmaus::util::TempFileNameGenerator & tmpgen;
 			
-			std::vector < std::string > outputfilenames;
+			// std::vector < std::string > outputfilenames;
+			
 			::libmaus::autoarray::AutoArray<context_ptr_type> contexts;
 			bit_vectors_type bv;
 			std::map<int64_t,uint64_t> leafToId;
@@ -70,16 +80,16 @@ namespace libmaus
 				{
 					contexts[i]->writeBit(0);
 					contexts[i]->flush();
-					
 					// std::cerr << "Flushed context " << i << std::endl;
 				}
 			}
 			
 			public:
 			ImpExternalWaveletGeneratorHuffman(
-				::libmaus::huffman::HuffmanTreeNode const * rroot, ::libmaus::util::TempFileNameGenerator & rtmpgen
+				::libmaus::huffman::HuffmanTreeNode const * rroot, 
+				::libmaus::util::TempFileContainer & rtmpcnt
 			)
-			: root(rroot), tmpgen(rtmpgen), symbols(0)
+			: root(rroot), tmpcnt(rtmpcnt), symbols(0)
 			{
 				std::map < ::libmaus::huffman::HuffmanTreeNode const * , ::libmaus::huffman::HuffmanTreeInnerNode const * > parentMap;
 				std::map < ::libmaus::huffman::HuffmanTreeInnerNode const *, uint64_t > nodeToId;
@@ -103,9 +113,9 @@ namespace libmaus
 						::libmaus::huffman::HuffmanTreeInnerNode const * node = dynamic_cast< ::libmaus::huffman::HuffmanTreeInnerNode const *>(cur);
 						uint64_t const id = nodeToId.size();
 
-						assert ( id == outputfilenames.size() );
+						// assert ( id == outputfilenames.size() );
 						nodeToId [ node ] = id;
-						outputfilenames.push_back(tmpgen.getFileName());
+						// outputfilenames.push_back(tmpgen.getFileName());
 						
 						parentMap [ node->left ] = node;
 						parentMap [ node->right ] = node;
@@ -119,7 +129,11 @@ namespace libmaus
 				// set up bit writer contexts
 				contexts = ::libmaus::autoarray::AutoArray<context_ptr_type>(nodeToId.size());
 				for ( uint64_t i = 0; i < contexts.size(); ++i )
-					contexts[i] = UNIQUE_PTR_MOVE(context_ptr_type(new context_type(outputfilenames[i], 0, false /* no header */)));
+				{
+					context_ptr_type tcontextsi(new context_type(
+                                                tmpcnt.openOutputTempFile(i), 0, false /* no header */));
+					contexts[i] = UNIQUE_PTR_MOVE(tcontextsi);
+				}
 					
 				bv = ::libmaus::autoarray::AutoArray < bit_vector_type >(leafMap.size());
 				uint64_t lid = 0;
@@ -174,7 +188,8 @@ namespace libmaus
 				// std::cerr << "Putting symbol " << s << " code length " << b.size() << " symbols now " << symbols << std::endl;
 			}
 
-			uint64_t createFinalStream(::libmaus::aio::CheckedOutputStream & out)
+			template<typename stream_type>
+			uint64_t createFinalStream(stream_type & out)
 			{			
 				flush();
 
@@ -194,18 +209,22 @@ namespace libmaus
 					uint64_t const allwordswritten = 8*blockswritten;
 						
 					contexts[i].reset();
+					tmpcnt.closeOutputTempFile(i);	
+					
 					// bits written
 					p += ::libmaus::serialize::Serialize<uint64_t>::serialize(out,64*datawordswritten);
 					// auto array header (words written)
 					p += ::libmaus::serialize::Serialize<uint64_t>::serialize(out,allwordswritten);
-					std::string const filename = outputfilenames[i];
-					::libmaus::aio::CheckedInputStream istr(filename);
+					//std::string const filename = outputfilenames[i];
+					//::libmaus::aio::CheckedInputStream istr(filename);
+					std::istream & istr = tmpcnt.openInputTempFile(i);
 					// std::ifstream istr(filename.c_str(),std::ios::binary);
 					// std::cerr << "Copying " << allwordswritten << " from stream " << filename << std::endl;
 					::libmaus::util::GetFileSize::copy (istr, out, allwordswritten, sizeof(uint64_t));
 					p += allwordswritten * sizeof(uint64_t);
+					tmpcnt.closeInputTempFile(i);
 
-					remove(filename.c_str());
+					// remove(filename.c_str());
 				}
 				
 				uint64_t const indexpos = p;

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_UTIL_TEMPFILEREMOVALCONTAINER_HPP)
 #define LIBMAUS_UTIL_TEMPFILEREMOVALCONTAINER_HPP
 
@@ -355,21 +355,27 @@ namespace libmaus
 				sighuphandler = signal(SIGHUP,sigHupHandler);
 				atexit(cleanup);
 			}
-
-			static void setup()
+			
+			static void setupUnlocked()
 			{
-				lock.lock();
 				if ( ! setupComplete )
 				{
 					setupTempFileRemovalRoutines();
 					setupComplete = true;
-				}
+				}			
+			}
+
+			static void setup()
+			{
+				lock.lock();
+				setupUnlocked();
 				lock.unlock();
 			}
 			
 			static void addTempFile(std::string const & filename)
 			{
 				lock.lock();
+				setupUnlocked();
 				tmpfilenames.push_back(filename);
 				lock.unlock();
 			}

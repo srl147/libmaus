@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,9 +15,22 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
-#include <libmaus/lz/SnappyCompress.hpp>
+*/
+
 #include <libmaus/aio/SynchronousGenericInput.hpp>
+#include <libmaus/lz/SnappyStringInputStream.hpp>
+#include <libmaus/lz/SnappyOutputStream.hpp>
+#include <libmaus/lz/SnappyOffsetFileInputStream.hpp>
+#include <libmaus/lz/SnappyInputStream.hpp>
+#include <libmaus/lz/SnappyInputStreamArray.hpp>
+#include <libmaus/lz/SnappyInputStreamArrayFile.hpp>
+#include <libmaus/lz/SnappyFileOutputStream.hpp>
+#include <libmaus/lz/SnappyFileInputStream.hpp>
+#include <libmaus/lz/SnappyDecompressorObject.hpp>
+#include <libmaus/lz/SnappyDecompressorObjectFactory.hpp>
+#include <libmaus/lz/SnappyCompressorObject.hpp>
+#include <libmaus/lz/SnappyCompressorObjectFactory.hpp>
+#include <libmaus/lz/SnappyCompress.hpp>
 
 void testSnappy()
 {

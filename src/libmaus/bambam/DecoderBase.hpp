@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_DECODERBASE_HPP)
 #define LIBMAUS_BAMBAM_DECODERBASE_HPP
 
@@ -26,8 +26,17 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * decoder base class
+		 **/
 		struct DecoderBase
 		{
+			/**
+			 * get next byte from stream; throws exception on EOF
+			 *
+			 * @param in input stream
+			 * @return next byte
+			 **/
 			template<typename stream_type>	
 			static uint8_t getByte(stream_type & in)
 			{
@@ -44,12 +53,25 @@ namespace libmaus
 				return c;
 			}
 			
+			/**
+			 * get next byte from stream as a word; throws exception on EOF
+			 *
+			 * @param in input stream
+			 * @return next byte as word
+			 **/
 			template<typename stream_type>	
 			static uint64_t getByteAsWord(stream_type & in)
 			{
 				return getByte(in);
 			}
 
+			/**
+			 * get l byte little endian integer from in
+			 *
+			 * @param in input stream
+			 * @param l length of number
+			 * @return decoded number
+			 **/
 			template<typename stream_type>	
 			static uint64_t getLEInteger(stream_type & in, unsigned int const l)
 			{
@@ -59,12 +81,36 @@ namespace libmaus
 				return v;
 			}
 
+			/**
+			 * get l byte little endian integer from D
+			 *
+			 * @param D input array
+			 * @param l length of number
+			 * @return decoded number
+			 **/
 			static uint64_t getLEInteger(uint8_t const * D, unsigned int const l)
 			{
+				#if defined(LIBMAUS_HAVE_i386)
+				switch ( l )
+				{
+					case 1: return *D;
+					case 2: return *(reinterpret_cast<uint16_t const *>(D));
+					case 4: return *(reinterpret_cast<uint32_t const *>(D));
+					case 8: return *(reinterpret_cast<uint64_t const *>(D));
+					default:
+					{
+						uint64_t v = 0;
+						for ( unsigned int i = 0; i < l; ++i )
+							v |= static_cast<uint64_t>(D[i]) << (8*i);
+						return v;
+					}
+				}
+				#else
 				uint64_t v = 0;
 				for ( unsigned int i = 0; i < l; ++i )
 					v |= static_cast<uint64_t>(D[i]) << (8*i);
 				return v;
+				#endif
 			}
 		};
 	}

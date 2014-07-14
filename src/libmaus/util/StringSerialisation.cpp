@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,16 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/StringSerialisation.hpp>
+#include <libmaus/util/CountPutObject.hpp>
 
-void libmaus::util::StringSerialisation::serialiseString(std::ostream & out, std::string const & s)
+uint64_t libmaus::util::StringSerialisation::serialiseString(std::ostream & out, std::string const & s)
 {
+	::libmaus::util::CountPutObject CPO;
+	::libmaus::util::UTF8::encodeUTF8(s.size(),CPO);
+
 	::libmaus::util::UTF8::encodeUTF8(s.size(),out);
 	out.write ( s.c_str(), s.size() );
 
@@ -31,6 +35,8 @@ void libmaus::util::StringSerialisation::serialiseString(std::ostream & out, std
 		se.finish();
 		throw se;
 	}
+	
+	return CPO.c + s.size();
 }
 
 std::string libmaus::util::StringSerialisation::deserialiseString(std::istream & in)
@@ -66,6 +72,12 @@ std::vector < std::string > libmaus::util::StringSerialisation::deserialiseStrin
 		strings.push_back ( deserialiseString(in) );
 	
 	return strings;
+}
+
+std::vector < std::string > libmaus::util::StringSerialisation::deserialiseStringVector ( std::string const & in )
+{
+	std::istringstream istr(in);
+	return deserialiseStringVector(istr);
 }
 
 void libmaus::util::StringSerialisation::serialiseStringVectorVector ( std::ostream & out, std::vector < std::vector < std::string > > const & V )

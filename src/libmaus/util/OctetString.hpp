@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_UTIL_OCTETSTRING_HPP)
 #define LIBMAUS_UTIL_OCTETSTRING_HPP
 
@@ -84,11 +84,12 @@ namespace libmaus
 			::libmaus::util::Histogram::unique_ptr_type getHistogram() const;
 			std::map<int64_t,uint64_t> getHistogramAsMap() const;
 
-			typedef ::libmaus::suffixsort::DivSufSort<32,uint8_t *,uint8_t const *,int32_t *,int32_t const *,256,true> sort_type;
-			typedef sort_type::saidx_t saidx_t;
+			typedef ::libmaus::suffixsort::DivSufSort<32,uint8_t *,uint8_t const *,int32_t *,int32_t const *,256,true> sort_type_parallel;
+			typedef ::libmaus::suffixsort::DivSufSort<32,uint8_t *,uint8_t const *,int32_t *,int32_t const *,256,false> sort_type_serial;
+			typedef sort_type_serial::saidx_t saidx_t;
 		
 			::libmaus::autoarray::AutoArray<saidx_t,::libmaus::autoarray::alloc_type_c> 
-				computeSuffixArray32() const;
+				computeSuffixArray32(bool const parallel = false) const;
 		};		
 	}
 }

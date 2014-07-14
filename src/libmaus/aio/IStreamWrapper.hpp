@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_UTIL_ISTREAMWRAPPER_HPP)
 #define LIBMAUS_UTIL_ISTREAMWRAPPER_HPP
 
@@ -25,12 +25,28 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * wrapper class for object of type std::istream
+		 **/
 		struct IStreamWrapper
 		{
+			//! wrapped object
 			std::istream & in;
 			
+			/**
+			 * constructor
+			 *
+			 * @param rin object to e wrapped
+			 **/
 			IStreamWrapper(std::istream & rin) : in(rin) {}
 			
+			/**
+			 * call wrapped object's read function
+			 *
+			 * @param p input buffer
+			 * @param c number of bytes to be read
+			 * @return number of bytes read
+			 **/
 			ssize_t read(char * p, size_t c)
 			{
 				in.read(p,c);

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(LIBMAUS_FASTX_PATTERN_HPP)
@@ -40,7 +40,14 @@ namespace libmaus
                         char const * transposed;
 
                         PatternBase() : patlen(0), patid(0), mapped(0), transposed(0) {}
+                        
+                        virtual ~PatternBase() {}
+                        
+                        private:
+                        PatternBase(PatternBase const &);
+                        PatternBase & operator=(PatternBase const &);
 
+                        public:
                         unsigned int getQuality(unsigned int const /* i */) const
                         {
                                 return 30;
@@ -84,6 +91,10 @@ namespace libmaus
                         {
                                 return quality[i];
                         }	
+                        
+                        private:
+                        PatternQualityBase(PatternQualityBase const &);
+                        PatternQualityBase & operator=(PatternQualityBase const &);
                 };
 
                 struct Pattern : public PatternBase
@@ -116,18 +127,18 @@ namespace libmaus
                         	
                         		if ( !o.spattern.size() )
                         		{
-                        			//std::cerr << "spattern empty, copying pointer." << std::endl;
+                        			//std::cerr << "spattern empty, copying pointer." << '\n';
 	                        		pattern = o.pattern;
 					}
 					else
 					{
-						//std::cerr << "spattern not empty, copying string." << std::endl;
+						//std::cerr << "spattern not empty, copying string." << '\n';
 						pattern = spattern.c_str();
 					}
                         	}
                         	else
                         	{
-                        		//std::cerr << "self copy." << std::endl;
+                        		//std::cerr << "self copy." << '\n';
                         	}
                         	return *this;
                         }
@@ -148,10 +159,10 @@ namespace libmaus
 					return sid.substr(0,j);
                         }
                         
-                        Pattern() : PatternBase(), pattern(0) {}
-                        Pattern(Pattern const & o) : PatternBase(), pattern(0)
+                        Pattern() : PatternBase(), sid(), spattern(), pattern(0), smapped(), stransposed() {}
+                        Pattern(Pattern const & o) : PatternBase(), sid(), spattern(), pattern(0), smapped(), stransposed()
                         {
-                        	//std::cerr << "copy construct." << std::endl;
+                        	//std::cerr << "copy construct." << '\n';
                         	*this = o;
                         }
                         
@@ -213,23 +224,73 @@ namespace libmaus
                                 for ( uint64_t i = 0; i < spattern.size(); ++i )
                                         spattern[i] = ::libmaus::fastx::remapChar(spattern[i]);
                         }
+                        
+                        std::ostream & printMultiLine(std::ostream & out, unsigned int const cols) const
+                        {
+                        	std::string const id = getStringId();
+                        
+                        	out.put('>');
+                        	out.write(id.c_str(),id.size());
+                        	out.put('\n');
+				if ( pattern )
+				{
+					char const * ita = pattern;
+					uint64_t rem = patlen;
+					
+					while ( rem )
+					{
+						uint64_t const toprint = std::min(static_cast<uint64_t>(cols),rem);
+						out.write(ita,toprint);
+						out.put('\n');
+						rem -= toprint;
+						ita += toprint;
+					}
+				}
+				return out;
+                        }
+                        std::ostream & printMultiLine(std::ostream & out, unsigned int const cols, uint64_t & offset) const
+                        {
+                        	std::string const id = getStringId();
+                        	
+				out << '>' << id << '\n';
+				
+				offset += 2 + id.size();
+				
+				if ( pattern )
+				{
+					char const * ita = pattern;
+					uint64_t rem = patlen;
+					
+					while ( rem )
+					{
+						uint64_t const toprint = std::min(static_cast<uint64_t>(cols),rem);
+						out.write(ita,toprint);
+						out.put('\n');
+						rem -= toprint;
+						ita += toprint;
+						
+						offset += toprint + 1;
+					}
+				}
+				return out;
+                        }
                 };
 
 		inline std::ostream & operator<< ( std::ostream & out, Pattern const & p)
 		{
-			out << ">" << p.getStringId() << std::endl;
+			out << ">" << p.getStringId() << '\n';
 			if ( p.pattern )
-				out << p.pattern << std::endl;
+				out << p.pattern << '\n';
 			else
-				out << "null" << std::endl;
+				out << "null" << '\n';
 			return out;
 		}
 
 		inline std::ostream & oneline ( std::ostream & out, Pattern const & p)
 		{
-			out << ">" << p.getStringId() << "\t";
+			out << ">" << p.getStringId() << '\t';
 			if ( p.pattern ) out << p.pattern;
-                        out << "\n";
+                        out << '\n';
 			return out;
 		}
 		struct PatternCount

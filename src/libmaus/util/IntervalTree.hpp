@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(INTERVALTREE_HPP)
 #define INTERVALTREE_HPP
@@ -46,7 +46,8 @@ namespace libmaus
 			IntervalTree(
 				::libmaus::autoarray::AutoArray < std::pair<uint64_t,uint64_t> > const & H,
 				uint64_t const ileft,
-				uint64_t const iright
+				uint64_t const iright,
+				bool const check = true
 			);
 			~IntervalTree();
 			

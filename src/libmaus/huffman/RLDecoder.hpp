@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,18 +15,17 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(RLDECODER_HPP)
 #define RLDECODER_HPP
 
+#include <libmaus/aio/CheckedInputStream.hpp>
 #include <libmaus/bitio/BitIOInput.hpp>
-#include <libmaus/autoarray/AutoArray.hpp>
 #include <libmaus/bitio/readElias.hpp>
 #include <libmaus/huffman/CanonicalEncoder.hpp>
-#include <libmaus/util/GetFileSize.hpp>
-#include <libmaus/util/IntervalTree.hpp>
 #include <libmaus/huffman/IndexDecoderDataArray.hpp>
+#include <libmaus/util/HistogramSet.hpp>
 
 namespace libmaus
 {
@@ -66,8 +65,9 @@ namespace libmaus
 					assert ( blockptr < idda.data[fileptr].numentries ); // check block pointer
 
 					// open new input file stream
-					istr = UNIQUE_PTR_MOVE(::libmaus::util::unique_ptr<std::ifstream>::type(
-						new std::ifstream(idda.data[fileptr].filename.c_str(),std::ios::binary)));
+					::libmaus::util::unique_ptr<std::ifstream>::type tistr(
+                                                new std::ifstream(idda.data[fileptr].filename.c_str(),std::ios::binary));
+					istr = UNIQUE_PTR_MOVE(tistr);
 				
 					// check whether file is open
 					if ( ! istr->is_open() )
@@ -94,11 +94,10 @@ namespace libmaus
 
 					// set up bit input
 					sbis_type::raw_input_ptr_type ript(new sbis_type::raw_input_type(*istr));
-					SBIS = UNIQUE_PTR_MOVE(
-						sbis_type::unique_ptr_type(
-							new sbis_type(ript,static_cast<uint64_t>(64*1024))
-						)
-					);
+					sbis_type::unique_ptr_type tSBIS(
+                                                        new sbis_type(ript,static_cast<uint64_t>(64*1024))
+                                                );
+					SBIS = UNIQUE_PTR_MOVE(tSBIS);
 
 					return true;
 				}
@@ -141,7 +140,7 @@ namespace libmaus
 				std::vector<std::string> const & rfilenames, uint64_t offset = 0
 			)
 			: 
-			  Pidda(UNIQUE_PTR_MOVE(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames))),
+			  Pidda(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames)),
 			  idda(*Pidda),
 			  pa(0), pc(0), pe(0),
 			  fileptr(0), blockptr(0)
@@ -198,9 +197,15 @@ namespace libmaus
 				::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type esccntdec;
 				::libmaus::huffman::CanonicalEncoder::unique_ptr_type cntdec;
 				if ( cntescape )
-					esccntdec = UNIQUE_PTR_MOVE(::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::EscapeCanonicalEncoder(cntmap)));
+				{
+					::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type tesccntdec(new ::libmaus::huffman::EscapeCanonicalEncoder(cntmap));
+					esccntdec = UNIQUE_PTR_MOVE(tesccntdec);
+				}
 				else
-					cntdec = UNIQUE_PTR_MOVE(::libmaus::huffman::CanonicalEncoder::unique_ptr_type(new ::libmaus::huffman::CanonicalEncoder(cntmap)));
+				{
+					::libmaus::huffman::CanonicalEncoder::unique_ptr_type tcntdec(new ::libmaus::huffman::CanonicalEncoder(cntmap));
+					cntdec = UNIQUE_PTR_MOVE(tcntdec);
+				}
 				
 				// increase buffersize if necessary
 				if ( bs > rlbuffer.size() )
@@ -277,6 +282,11 @@ namespace libmaus
 				return std::pair<int64_t,uint64_t>(sym,freq);
 			}
 			
+			inline void putBack(std::pair<int64_t,uint64_t> const & P)
+			{
+				*(--pc) = P;
+			}
+			
 			inline int get()
 			{
 				return decode();
@@ -299,6 +309,105 @@ namespace libmaus
 				for ( uint64_t i = 0; i < filenames.size(); ++i )
 					s += getLength(filenames[i]);
 				return s;
+			}
+			
+			// compute run length histogram for run length values stored in file given by name
+			static libmaus::util::Histogram::unique_ptr_type getRunLengthHistogram(std::string const & filename)
+			{
+				libmaus::huffman::IndexDecoderData IDD(filename);
+				
+				#if defined(_OPENMP)
+				uint64_t const numthreads = omp_get_max_threads();
+				#else
+				uint64_t const numthreads = 1;
+				#endif
+				
+				libmaus::util::HistogramSet HS(numthreads,256);
+				
+				uint64_t const numentries = IDD.numentries;
+				uint64_t const entriesperthread = (numentries + numthreads - 1)/numthreads;
+				uint64_t const numpacks = ( numentries + entriesperthread - 1 ) / entriesperthread;
+				
+				#if defined(_OPENMP)
+				#pragma omp parallel for
+				#endif
+				for ( int64_t t = 0; t < static_cast<int64_t>(numpacks); ++t )
+				{
+					uint64_t const plow = t * entriesperthread;
+					uint64_t const phigh = std::min(plow+entriesperthread,numentries);
+					libmaus::util::Histogram & hist = HS[t];
+
+					libmaus::huffman::IndexEntry const ientry = IDD.readEntry(plow);
+					
+					libmaus::aio::CheckedInputStream CIS(filename);
+					CIS.clear();
+					CIS.seekg(ientry.pos,std::ios::beg);					
+
+					// set up bit input
+					sbis_type::raw_input_ptr_type ript(new sbis_type::raw_input_type(CIS));
+					sbis_type::unique_ptr_type SBIS(new sbis_type(ript,static_cast<uint64_t>(64*1024)));
+					
+					for ( uint64_t b = plow; b < phigh; ++b )
+					{					
+						// byte align stream
+						SBIS->flush();
+					
+						// read block size
+						uint64_t const bs = ::libmaus::bitio::readElias2(*SBIS);
+						bool const cntescape = SBIS->readBit();
+
+						// read huffman code maps
+						::libmaus::autoarray::AutoArray< std::pair<int64_t, uint64_t> > symmap = ::libmaus::huffman::CanonicalEncoder::deserialise(*SBIS);
+						::libmaus::autoarray::AutoArray< std::pair<int64_t, uint64_t> > cntmap = ::libmaus::huffman::CanonicalEncoder::deserialise(*SBIS);
+						
+						// construct decoder for symbols
+						::libmaus::huffman::CanonicalEncoder symdec(symmap);
+						
+						// construct decoder for runlengths
+						::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type esccntdec;
+						::libmaus::huffman::CanonicalEncoder::unique_ptr_type cntdec;
+						if ( cntescape )
+						{
+							::libmaus::huffman::EscapeCanonicalEncoder::unique_ptr_type tesccntdec(new ::libmaus::huffman::EscapeCanonicalEncoder(cntmap));
+							esccntdec = UNIQUE_PTR_MOVE(tesccntdec);
+						}
+						else
+						{
+							::libmaus::huffman::CanonicalEncoder::unique_ptr_type tcntdec(new ::libmaus::huffman::CanonicalEncoder(cntmap));
+							cntdec = UNIQUE_PTR_MOVE(tcntdec);
+						}
+						
+						// byte align input stream
+						SBIS->flush();
+
+						// decode symbols
+						for ( uint64_t i = 0; i < bs; ++i )
+							symdec.fastDecode(*SBIS);
+
+						// byte align
+						SBIS->flush();
+
+						// decode runlengths
+						if ( cntescape )
+							for ( uint64_t i = 0; i < bs; ++i )
+							{
+								uint64_t const cnt = esccntdec->fastDecode(*SBIS);
+								hist(cnt);
+							}
+						else
+							for ( uint64_t i = 0; i < bs; ++i )
+							{
+								uint64_t const cnt = cntdec->fastDecode(*SBIS);
+								hist(cnt);
+							}
+
+						// byte align
+						SBIS->flush();
+					}
+				}
+				
+				libmaus::util::Histogram::unique_ptr_type tptr(HS.merge());
+				return UNIQUE_PTR_MOVE(tptr);
 			}
 		};
 	}

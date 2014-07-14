@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(ERANKBASE_HPP)
 #define ERANKBASE_HPP
 
@@ -36,31 +36,10 @@ namespace libmaus
 {
 	namespace rank
 	{
-		/**
-		 * rank base functions
-		 **/
-		struct ERankBase
+		struct BSwapBase
 		{
-			typedef ERankBase this_type;
-			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
-
-			private:
-			#if defined(RANKTABLES)
-			//! lookup table for popcount function
-			static RankTable const R;
-			static SimpleRankTable const S;
-			#endif
-			protected:
-			/**
-			 * cache for encoding enumerative code
-			 **/
-			static EncodeCache<16,uint16_t> EC16;
-			/**
-			 * cache for decoding enumerative code
-			 **/
-			static DecodeCache<16,uint16_t> DC16;
-			
-			protected:
+			virtual ~BSwapBase() {}
+		
 			/**
 			 * invert byte order of 2 byte word
 			 * @param val
@@ -116,6 +95,33 @@ namespace libmaus
 					;
 	#endif
 			}
+		};
+	
+		/**
+		 * rank base functions
+		 **/
+		struct ERankBase : public BSwapBase
+		{
+			typedef ERankBase this_type;
+			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+
+			private:
+			#if defined(RANKTABLES)
+			//! lookup table for popcount function
+			static RankTable const R;
+			static SimpleRankTable const S;
+			#endif
+			protected:
+			/**
+			 * cache for encoding enumerative code
+			 **/
+			static EncodeCache<16,uint16_t> EC16;
+			/**
+			 * cache for decoding enumerative code
+			 **/
+			static DecodeCache<16,uint16_t> DC16;
+			
+			protected:
 			
 			// #define RTABLE
 			// #define HAVE_SSE4

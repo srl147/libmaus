@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(BITIOINPUT_HPP)
@@ -345,6 +345,188 @@ namespace libmaus
 		};
 
 		typedef StreamBitInputStreamTemplate<std::istream> StreamBitInputStream;
+		
+		template<typename N, unsigned int k>
+		struct FullMask
+		{
+			static N const v = (FullMask<N,k-1>::v << 1) | static_cast<N>(1);
+		};
+		
+		template<typename N>
+		struct FullMask<N,1>
+		{
+			static N const v = 1;
+		};
+
+		template<typename N>
+		struct FullMask<N,0>
+		{
+			static N const v = 0;
+		};
+		
+		template<typename stream_type, typename entity_type>
+		struct StreamGetAdapter
+		{
+			static bool getNext(stream_type & stream, entity_type & v)
+			{
+				int const rv = stream.get();
+				
+				if ( rv < 0 )
+					return false;
+				else
+				{
+					v = rv;
+					return true;
+				}
+			}
+		};
+
+		// class for bitwise input
+		template<typename _stream_type, typename _entity_type, typename _adapter_type = StreamGetAdapter<_stream_type,_entity_type> >
+		class MarkerStreamBitInputStreamTemplate
+		{
+			public:
+			typedef _stream_type stream_type;
+			typedef _entity_type entity_type;
+			typedef MarkerStreamBitInputStreamTemplate<stream_type,entity_type> this_type;
+			typedef typename ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef typename ::libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+			
+			static entity_type const top_bit = static_cast<entity_type>(1) << (8*sizeof(entity_type)-1);
+			static entity_type const sub_top_bit = (top_bit >> 1);
+			static entity_type const full_mask = FullMask<entity_type,8*sizeof(entity_type)>::v;
+			static entity_type const sub_full_mask = (full_mask - 1);
+		
+			private:	
+			// input stream
+			stream_type & in;
+			// current byte
+			entity_type curByte;
+			// number of bits processed in current byte (mask)
+			entity_type curByteMask;
+			// total number of bits read
+			uint64_t bitsRead;
+
+			public:
+			// constructor by iterators
+			MarkerStreamBitInputStreamTemplate(stream_type & rin)
+			: in(rin), curByte(0), curByteMask(0), bitsRead(0)
+			{
+			}
+
+			// get number of bits read
+			inline uint64_t getBitsRead() const
+			{
+				return bitsRead;
+			}
+			
+			void fillByteChecked()
+			{
+				int const ncurByte = in.get();
+
+				if ( ncurByte < 0 )
+				{
+					::libmaus::exception::LibMausException se;
+					se.getStream() << "EOF in MarkerStreamBitInputStream::fillByteChecked()." << std::endl;
+					se.finish();
+					throw se;					
+				}
+				
+				if ( ncurByte == sub_full_mask )
+				{
+					curByteMask = sub_top_bit;
+					curByte = ncurByte >> 1;
+				}
+				else
+				{
+					curByteMask = top_bit;
+					curByte = ncurByte;
+				}
+			}
+
+			void fillByteUnchecked()
+			{
+				int const ncurByte = in.get();
+
+				if ( ncurByte == sub_full_mask )
+				{
+					curByteMask = sub_top_bit;
+					curByte = ncurByte >> 1;
+				}
+				else
+				{
+					curByteMask = top_bit;
+					curByte = ncurByte;
+				}
+			}
+
+			// read one bit
+			inline bool readBit()
+			{
+				if ( ! curByteMask )
+					fillByteChecked();
+
+				++bitsRead;
+
+				bool bit = (curByte & curByteMask)!=0;
+				curByteMask >>= 1;
+				return bit;
+			}
+
+			// flush (align to byte bound)
+			inline void flush()
+			{
+				while ( curByteMask )
+					readBit();
+			}
+
+			// read numbits unsigned number
+			inline uint64_t read(unsigned int numbits)
+			{
+				bitsRead += static_cast<uint64_t>(numbits);
+				uint64_t result = 0;
+			
+				while ( numbits )
+				{
+					// check how many bits are left in the buffer
+					unsigned int const bitsleft = curByteMask ? (__builtin_ctz(curByteMask)+1) : 0;
+					
+					// we have sufficient bits in the current word to finish
+					if ( numbits <= bitsleft ) 
+					{
+						unsigned int const shift = (bitsleft - numbits);
+						entity_type const shifted = static_cast<entity_type>(curByte >> shift);
+						
+						result <<= numbits;
+						result |= ::libmaus::math::lowbits(numbits) & shifted;
+						// all requested bits read
+						curByteMask >>= numbits;
+						numbits = 0;
+					}
+					// current word does not contain sufficient bits, copy all bits to output
+					else
+					{
+						result <<= bitsleft;
+						result |= (::libmaus::math::lowbits(bitsleft) & curByte);
+						fillByteChecked();
+						numbits -= bitsleft;
+					}
+				}
+				
+				return result;
+			}
+
+			inline uint64_t readElias() {
+				unsigned int numbits = 0;
+				
+				while ( readBit() == 0 )
+					numbits++;
+					
+				return read(numbits);
+			}
+		};
+
+		typedef MarkerStreamBitInputStreamTemplate<std::istream,uint8_t> MarkerStreamBitInputStream;
 	}
 }
 #endif

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(SUCCINCTFACTORLIST_HPP)
 #define SUCCINCTFACTORLIST_HPP
@@ -914,7 +914,8 @@ namespace libmaus
 			{
 				if ( bhigh == B.size() )
 					extendBlockArray();
-				B[bhigh++] = UNIQUE_PTR_MOVE(block_ptr_type(new block_type(context.get(),bufsize)));
+				block_ptr_type tBhigh(new block_type(context.get(),bufsize));
+				B[bhigh++] = UNIQUE_PTR_MOVE(tBhigh);
 			}
 			
 			static uint64_t computeLogN(uint64_t const n)
@@ -936,7 +937,7 @@ namespace libmaus
 			
 			void pushExplicitWord(uint64_t const word, uint64_t const len)
 			{
-				if ( (blow==bhigh) )
+				if ( blow==bhigh )
 					pushBlock();
 					
 				if ( ! B[bhigh-1]->pushExplicitWord(word,len) )
@@ -949,7 +950,7 @@ namespace libmaus
 			
 			void push(uint64_t const i, uint64_t const j, uint64_t const k)
 			{
-				if ( (blow==bhigh) )
+				if ( blow==bhigh )
 					pushBlock();
 				if ( ! B[bhigh-1]->push(i,j,k) )
 				{
@@ -999,7 +1000,10 @@ namespace libmaus
 					B[bhigh-i-1] = UNIQUE_PTR_MOVE(R0);
 				}
 				if ( (bhigh-blow) & 1 )
-					B[blow+(bhigh-blow)/2] = UNIQUE_PTR_MOVE(B[blow+(bhigh-blow)/2]->reverse());
+				{
+					block_ptr_type tB(B[blow+(bhigh-blow)/2]->reverse());
+					B[blow+(bhigh-blow)/2] = UNIQUE_PTR_MOVE(tB);
+				}
 			}
 
 			template<typename iterator>

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(DEMANGLE_HPP)
 #define DEMANGLE_HPP
@@ -27,15 +27,30 @@ namespace libmaus
 {
 	namespace util
 	{
+		/**
+		 * class for demangling type names
+		 **/
 		struct Demangle
 		{
+			/**
+			 * demangle name
+			 *
+			 * @param name string to be demangled
+			 * @return demangled name
+			 **/
 			static std::string demangleName(std::string const name);
 
+			/**
+			 * @return demangled name of type eclass
+			 **/
 			template<typename eclass>
 			static std::string demangle()
 			{
 				return demangleName(typeid(eclass).name());
 			}
+			/**
+			 * @return demangled name of type eclass
+			 **/
 			template<typename eclass>
 			static std::string demangle(eclass const &)
 			{

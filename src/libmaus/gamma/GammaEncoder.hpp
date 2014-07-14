@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,19 +15,29 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_GAMMA_GAMMAENCODER_HPP)
 #define LIBMAUS_GAMMA_GAMMAENCODER_HPP
 
 #include <libmaus/bitio/Clz.hpp>
 #include <libmaus/util/unique_ptr.hpp>
+#include <libmaus/math/lowbits.hpp>
 
 namespace libmaus
 {
 	namespace gamma
 	{
+		struct GammaEncoderBase : public libmaus::bitio::Clz
+		{
+			static inline unsigned int getCodeLen(uint64_t const code)
+			{
+				unsigned int const nd = 63-clz(code);
+				return 1 + (nd<<1);
+			}		
+		};
+	
 		template<typename _stream_type>
-		struct GammaEncoder : public libmaus::bitio::Clz
+		struct GammaEncoder : public GammaEncoderBase
 		{
 			typedef _stream_type stream_type;
 			typedef GammaEncoder<stream_type> this_type;
@@ -42,13 +52,7 @@ namespace libmaus
 			{
 			
 			}
-			
-			static inline unsigned int getCodeLen(uint64_t const code)
-			{
-				unsigned int const nd = 63-clz(code);
-				return 1 + (nd<<1);
-			}
-			
+						
 			inline void encodeWord(uint64_t const code, unsigned int const codelen)
 			{
 				if ( bav >= codelen )
@@ -61,7 +65,8 @@ namespace libmaus
 				{
 					unsigned int const overflow = (codelen-bav);
 					stream.put((v << bav) | (code >> overflow));
-					v = code & ((1ull << overflow)-1);
+					v = code & libmaus::math::lowbits(overflow); 
+						// ((1ull << overflow)-1);
 					bav = 64-overflow;
 				}			
 			}
@@ -82,6 +87,11 @@ namespace libmaus
 					v = 0;
 					bav = 64;
 				}
+			}
+			
+			uint64_t getOffset() const
+			{
+				return 64 * stream.getWrittenWords() + (64-bav);
 			}
 		};
 	}

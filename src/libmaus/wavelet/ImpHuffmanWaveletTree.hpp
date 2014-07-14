@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(IMPHUFFMANWAVELETTREE_HPP)
 #define IMPHUFFMANWAVELETTREE_HPP
@@ -49,6 +49,23 @@ namespace libmaus
 			
 			std::vector<uint64_t> nodepos;
 			
+			uint64_t byteSize() const
+			{
+				uint64_t s = 0;
+				
+				s += sizeof(uint64_t);
+				s += sroot->byteSize();
+
+				s += dicts.byteSize();
+				for ( uint64_t i = 0; i < dicts.size(); ++i )
+					if ( dicts[i] )
+						s += dicts[i]->byteSize();
+				
+				s += enctable.byteSize();
+				s += sizeof(uint64_t);
+				
+				return s;
+			}
 			
 			bool haveSymbol(::libmaus::huffman::HuffmanTreeNode const * node, int64_t const sym) const
 			{
@@ -227,7 +244,8 @@ namespace libmaus
 			
 				for ( uint64_t i = 0; i < dicts.size(); ++i )
 				{
-					dicts [ i ] = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(in)));
+					rank_ptr_type tdictsi(new rank_type(in));
+					dicts [ i ] = UNIQUE_PTR_MOVE(tdictsi);
 					dicts [ i ] -> checkSanity();
 				}
 					
@@ -256,7 +274,10 @@ namespace libmaus
 				s += 2*sizeof(uint64_t);
 			
 				for ( uint64_t i = 0; i < dicts.size(); ++i )
-					dicts [ i ] = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(in,s)));
+				{
+					rank_ptr_type tdictsi(new rank_type(in,s));
+					dicts [ i ] = UNIQUE_PTR_MOVE(tdictsi);
+				}
 					
 				nodepos = ::libmaus::util::NumberSerialisation::deserialiseNumberVector<uint64_t>(in);
 				::libmaus::util::NumberSerialisation::deserialiseNumber(in); // index position
@@ -266,6 +287,7 @@ namespace libmaus
 				init();
 			}
 			
+			private:
 			ImpHuffmanWaveletTree(
 				std::string const & filename,
 				uint64_t const rn,
@@ -282,12 +304,14 @@ namespace libmaus
 				{
 					::libmaus::aio::CheckedInputStream istr(filename.c_str(),std::ios::binary);
 					istr.seekg(nodepos[i],std::ios::beg);
-					dicts[i] = UNIQUE_PTR_MOVE(rank_ptr_type(new rank_type(istr)));
+					rank_ptr_type tdictsi(new rank_type(istr));
+					dicts[i] = UNIQUE_PTR_MOVE(tdictsi);
 				}
 			
 				init();
 			}
 			
+			public:
 			static unique_ptr_type load(std::string const & filename)
 			{
 				::libmaus::aio::CheckedInputStream in(filename.c_str());

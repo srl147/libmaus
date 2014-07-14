@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LSFPROCESS_HPP)
 #define LSFPROCESS_HPP
@@ -40,6 +40,8 @@ namespace libmaus
 			static ::libmaus::parallel::OMPLock lsflock;
 			static void init(std::string const & sappname);
 			static std::string getClusterName();
+			
+			static uint64_t Mscale;
 		};
 	
 		struct LSFProcess : public LSFStateBase
@@ -65,7 +67,8 @@ namespace libmaus
         		        std::string const & serrfilename,
         		        std::vector < std::string > const * hosts = 0,
         		        char const * cwd = 0,
-        		        uint64_t const tmpspace = 0
+        		        uint64_t const tmpspace = 0,
+        		        char const * model = 0
                         );
 
         		LSFProcess(
@@ -80,7 +83,8 @@ namespace libmaus
         		        std::string const & serrfilename = "/dev/null",
         		        std::vector < std::string > const * hosts = 0,
         		        char const * cwd = 0,
-        		        uint64_t const tmpspace = 0
+        		        uint64_t const tmpspace = 0,
+        		        char const * model = 0
                 		);
 
 			bool isKnown() const;

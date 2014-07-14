@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HUFFMANTREEINNERNODE_HPP)
 #define HUFFMANTREEINNERNODE_HPP
@@ -48,6 +48,19 @@ namespace libmaus
                         bool isLeaf() const { return false; }
                         uint64_t getFrequency() const {
                                 return frequency;
+                        }
+                        
+                        uint64_t byteSize() const
+                        {
+                        	uint64_t s = 0;
+                        	
+                        	s += 2*sizeof(HuffmanTreeNode *) + sizeof(uint64_t);
+                        	if ( left )
+                        		s += left->byteSize();
+                        	if ( right )
+                        		s += right->byteSize();
+                        		
+				return s;
                         }
                         
                         void fillParentMap(::std::map < HuffmanTreeNode *, HuffmanTreeInnerNode * > & M)

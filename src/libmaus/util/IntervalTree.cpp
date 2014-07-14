@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/IntervalTree.hpp>
 			
@@ -27,10 +27,11 @@ bool libmaus::util::IntervalTree::isLeaf() const
 libmaus::util::IntervalTree::IntervalTree(
 	::libmaus::autoarray::AutoArray < std::pair<uint64_t,uint64_t> > const & H,
 	uint64_t const ileft,
-	uint64_t const iright
+	uint64_t const iright,
+	bool const check
 )
 {
-	if ( ileft == 0 && iright == H.size() )
+	if ( check && ileft == 0 && iright == H.size() )
 	{
 		for ( uint64_t i = 1; i < H.size(); ++i )
 		{
@@ -76,8 +77,10 @@ libmaus::util::IntervalTree::IntervalTree(
 	{
 		uint64_t const imiddle = (ileft + iright)/2;
 		split = H[imiddle].first;
-		leftchild = UNIQUE_PTR_MOVE(unique_ptr_type(new IntervalTree(H,ileft,imiddle)));
-		rightchild = UNIQUE_PTR_MOVE(unique_ptr_type(new IntervalTree(H,imiddle,iright)));
+		unique_ptr_type tleftchild(new IntervalTree(H,ileft,imiddle));
+		leftchild = UNIQUE_PTR_MOVE(tleftchild);
+		unique_ptr_type trightchild(new IntervalTree(H,imiddle,iright));
+		rightchild = UNIQUE_PTR_MOVE(trightchild);
 	}
 }
 

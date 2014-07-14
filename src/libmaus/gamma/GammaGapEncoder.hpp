@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_GAMMA_GAMMAGAPENCODER_HPP)
 #define LIBMAUS_GAMMA_GAMMAGAPENCODER_HPP
 
@@ -56,9 +56,8 @@ namespace libmaus
 			}
 			
 			template<typename iterator>
-			uint64_t encodeInternal(iterator ita, iterator ite, uint64_t off)
+			uint64_t encodeInternal(iterator ita, uint64_t const n, uint64_t off)
 			{
-				uint64_t const n = ite-ita;
 				::libmaus::aio::SynchronousGenericOutput<uint64_t> SGO(COS,64*1024);
 				::libmaus::gamma::GammaEncoder < ::libmaus::aio::SynchronousGenericOutput<uint64_t> > GE(SGO);
 				uint64_t const numblocks = (n + blocksize-1)/blocksize;
@@ -150,16 +149,23 @@ namespace libmaus
 				FWBWS.flush();
 				SGO.flush();
 			}
-
+			
 			template<typename iterator>
-			void encode(iterator ita, iterator ite)
-			{
-				uint64_t const fslen = writeFileSize(ite-ita);
-				uint64_t const indexpos = fslen + encodeInternal<iterator>(ita,ite,fslen);
+			void encode(iterator ita, uint64_t const n)
+			{			
+				uint64_t const fslen = writeFileSize(n);
+				uint64_t const indexpos = fslen + encodeInternal<iterator>(ita,n,fslen);
 												
 				writeIndex(indexpos);
 				
 				COS.flush();
+			}
+
+			template<typename iterator>
+			void encode(iterator ita, iterator ite)
+			{
+				uint64_t const n = ite-ita;
+				encode(ita,n);
 			}
 
 			// merge multiple gap arrays to one by adding them up per rank
@@ -189,7 +195,10 @@ namespace libmaus
 					GammaGapEncoder::unique_ptr_type GGE(new GammaGapEncoder(outfilename));
 					::libmaus::autoarray::AutoArray<GammaGapDecoder::unique_ptr_type> GGD(infilenames.size());
 					for ( uint64_t i = 0; i < infilenames.size(); ++i )
-						GGD[i] = UNIQUE_PTR_MOVE(GammaGapDecoder::unique_ptr_type(new GammaGapDecoder(infilenames[i])));
+					{
+						GammaGapDecoder::unique_ptr_type tGGDi(new GammaGapDecoder(infilenames[i]));
+						GGD[i] = UNIQUE_PTR_MOVE(tGGDi);
+					}
 
 					uint64_t const fslen = GGE->writeFileSize(n);
 					uint64_t const numblocks = (n + blocksize-1)/blocksize;
@@ -239,7 +248,10 @@ namespace libmaus
 					if ( check )
 					{
 						for ( uint64_t i = 0; i < infilenames.size(); ++i )
-							GGD[i] = UNIQUE_PTR_MOVE(GammaGapDecoder::unique_ptr_type(new GammaGapDecoder(infilenames[i])));
+						{
+							GammaGapDecoder::unique_ptr_type tGGDi(new GammaGapDecoder(infilenames[i]));
+							GGD[i] = UNIQUE_PTR_MOVE(tGGDi);
+						}
 						GammaGapDecoder OGGD(std::vector<std::string>(1,outfilename));
 						
 						for ( uint64_t i = 0; i < n; ++i )

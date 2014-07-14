@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/network/LogReceiver.hpp>
 
@@ -26,9 +26,9 @@ int main(/* int argc, char * argv[] */)
 
 		::libmaus::network::StringRecDispatchCallback srdc;
 		
-		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP0 = UNIQUE_PTR_MOVE(LR->constructLogReceiverTestProcess(0 /* id */,&srdc));
-		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP1 = UNIQUE_PTR_MOVE(LR->constructLogReceiverTestProcess(1 /* id */,&srdc));
-		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP2 = UNIQUE_PTR_MOVE(LR->constructLogReceiverTestProcess(2 /* id */,&srdc));
+		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP0 (LR->constructLogReceiverTestProcess(0 /* id */,&srdc));
+		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP1 (LR->constructLogReceiverTestProcess(1 /* id */,&srdc));
+		::libmaus::network::LogReceiverTestProcess::unique_ptr_type TP2 (LR->constructLogReceiverTestProcess(2 /* id */,&srdc));
 		
 		std::map<uint64_t, ::libmaus::network::SocketBase::shared_ptr_type > controlsocks;
 		

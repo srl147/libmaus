@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,29 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/MemUsage.hpp>
 
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#endif
+
+#if defined(__FreeBSD__)
+#include <fcntl.h>
+#include <kvm.h>
+#include <paths.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <unistd.h>
+#endif
+
 libmaus::util::MemUsage::MemUsage()
+: VmPeak(0), VmSize(0), VmLck(0), VmHWM(0), VmRSS(0),
+  VmData(0), VmStk(0), VmExe(0), VmLib(0), VmPTE(0)
 {
+	#if defined(__linux__)
 	std::map<std::string,std::string> const M = getProcSelfStatusMap();
 	VmPeak = getMemParam(M,"VmPeak");
 	VmSize = getMemParam(M,"VmSize");
@@ -32,6 +49,32 @@ libmaus::util::MemUsage::MemUsage()
 	VmExe = getMemParam(M,"VmExe");
 	VmLib = getMemParam(M,"VmLib");
 	VmPTE = getMemParam(M,"VmPTE");
+	#elif defined(__APPLE__)
+	struct task_basic_info t_info;
+	mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+	
+	if (KERN_SUCCESS == task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count))
+	{
+		VmSize = t_info.virtual_size;
+		VmRSS = t_info.resident_size;
+	}
+	#elif defined(__FreeBSD__)
+	pid_t const pid = getpid();
+	uint64_t const pagesize = getpagesize();
+	int cnt;
+	kvm_t * kd = kvm_open(getbootfile(),"/dev/null",NULL,O_RDONLY,0);
+	struct kinfo_proc *ki = kd ? kvm_getprocs(kd,KERN_PROC_PID,pid,&cnt) : 0;
+	if ( ki )
+	{
+		VmSize = ki->ki_size;
+		VmRSS = (ki->ki_rssize*pagesize);
+		VmPeak = ki->ki_rusage.ru_maxrss*1024;
+	}
+	if ( kd )
+	{
+		kvm_close(kd);
+	}                                                                                                                                                        
+	#endif
 }
 
 libmaus::util::MemUsage::MemUsage(MemUsage const & o)

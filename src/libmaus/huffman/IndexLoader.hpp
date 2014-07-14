@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(INDEXLOADER_HPP)
 #define INDEXLOADER_HPP
@@ -254,7 +254,10 @@ namespace libmaus
 			{
 				::libmaus::autoarray::AutoArray<IndexEntryContainer::unique_ptr_type> A(filenames.size());
 				for ( uint64_t i = 0; i < filenames.size(); ++i )
-					A[i] = UNIQUE_PTR_MOVE(loadAccIndex(filenames[i]));
+				{
+					IndexEntryContainer::unique_ptr_type tAi(loadAccIndex(filenames[i]));
+					A[i] = UNIQUE_PTR_MOVE(tAi);
+				}
 
 				IndexEntryContainerVector::unique_ptr_type IECV(new IndexEntryContainerVector(A));
 				
@@ -404,11 +407,12 @@ namespace libmaus
 					#endif
 				}
 				
-				for ( uint64_t i = numentries-1; i >= 1; --i )
-				{
-					index[i].kcnt -= index[i-1].kcnt;
-					index[i].vcnt -= index[i-1].vcnt;
-				}
+				if ( numentries )
+					for ( uint64_t i = numentries-1; i >= 1; --i )
+					{
+						index[i].kcnt -= index[i-1].kcnt;
+						index[i].vcnt -= index[i-1].vcnt;
+					}
 					
 				#if defined(INDEXLOADERDEBUG)
 				for ( uint64_t i = 0; i < numentries; ++i )

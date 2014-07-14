@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/types/types.hpp>
 #include <libmaus/autoarray/AutoArray.hpp>
@@ -25,7 +25,9 @@
 #include <sstream>
 #include <iostream>
 
-#if defined(_OPENMP)
+#if defined(LIBMAUS_HAVE_PTHREADS) 
+libmaus::parallel::PosixSpinLock libmaus::autoarray::AutoArray_lock;
+#elif defined(_OPENMP)
 libmaus::parallel::OMPLock libmaus::autoarray::AutoArray_lock;
 #endif
 
@@ -102,3 +104,19 @@ unsigned char const ::libmaus::util::SaturatingCounter::mask[4] = {
 		static_cast<uint8_t>(~(3 << 2)),
 		static_cast<uint8_t>(~(3 << 0))
 };
+
+#include <libmaus/lz/RAZFConstants.hpp>
+
+unsigned int const libmaus::lz::RAZFConstants::razf_window_bits = 15;
+uint64_t const libmaus::lz::RAZFConstants::razf_block_size = 1ull << razf_window_bits;
+uint64_t const libmaus::lz::RAZFConstants::razf_bin_size = (1ull << 32) / razf_block_size;
+
+#include <libmaus/network/CurlInit.hpp>
+
+uint64_t libmaus::network::CurlInit::initcomplete = 0;
+libmaus::parallel::PosixSpinLock libmaus::network::CurlInit::lock;
+
+#include <libmaus/network/OpenSSLInit.hpp>
+
+uint64_t libmaus::network::OpenSSLInit::initcomplete = 0;
+libmaus::parallel::PosixSpinLock libmaus::network::OpenSSLInit::lock;

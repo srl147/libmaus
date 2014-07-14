@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#include "FischerSystematicSuccinctRMQ.hpp"
+#include <libmaus/rmq/FischerSystematicSuccinctRMQ.hpp>
 
 const libmaus::rmq::FischerSystematicSuccinctRMQBase::DTidx libmaus::rmq::FischerSystematicSuccinctRMQBase::Catalan[17][17] = {
 	{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
@@ -91,3 +91,4 @@ const libmaus::rmq::FischerSystematicSuccinctRMQBase::DTsucc
 		static_cast<libmaus::rmq::FischerSystematicSuccinctRMQBase::DTsucc>(~63), 
 		static_cast<libmaus::rmq::FischerSystematicSuccinctRMQBase::DTsucc>(~127)
 	};
+

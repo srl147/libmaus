@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_HPP)
 #define LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_HPP
 
@@ -29,6 +29,7 @@
 #include <libmaus/huffman/RLDecoder.hpp>
 #include <libmaus/parallel/OMPNumThreadsScope.hpp>
 #include <libmaus/util/PutObjectReverse.hpp>
+#include <libmaus/autoarray/AutoArray2d.hpp>
 
 namespace libmaus
 {
@@ -64,7 +65,7 @@ namespace libmaus
 				uint64_t const numthreads = ::libmaus::parallel::OMPNumThreadsScope::getMaxThreads()
 			)
 			{
-				::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
+				// ::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
 				::libmaus::util::TempFileRemovalContainer::setup();
 
 				if ( ! htree.get() )
@@ -90,7 +91,7 @@ namespace libmaus
 					
 					::libmaus::autoarray::AutoArray<uint64_t> symsperpart(numparts+1);
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t i = 0; i < static_cast<int64_t>(numparts); ++i )
 					{
@@ -122,6 +123,7 @@ namespace libmaus
 					}
 				
 					uint64_t const numnodes = htree->numsyms()-1;
+					#if 0
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodebitcnt(numparts);
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodewordcnt(numparts+1);
 					for ( uint64_t i = 0; i < numparts; ++i )
@@ -129,14 +131,21 @@ namespace libmaus
 						vnodebitcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes);
 						vnodewordcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes+1);
 					}
+					#endif
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodebitcnt(numparts,numnodes);
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodewordcnt(numparts+1,numnodes+1);
 
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t partid = 0; partid < static_cast<int64_t>(numparts); ++partid )
 					{
+						#if 0
 						::libmaus::autoarray::AutoArray<uint64_t> & nodebitcnt = vnodebitcnt[partid];
 						::libmaus::autoarray::AutoArray<uint64_t> & nodewordcnt = vnodewordcnt[partid];
+						#endif
+						uint64_t * const nodebitcnt = vnodebitcnt[partid];
+						uint64_t * const nodewordcnt = vnodewordcnt[partid];
 						uint64_t lnodeid = 0;
 
 						uint64_t const partsize = partstarts[partid+1]-partstarts[partid];
@@ -399,7 +408,8 @@ namespace libmaus
 							#endif			
 						}
 
-						assert ( lnodeid == nodebitcnt.size() );
+						// assert ( lnodeid == nodebitcnt.size() );
+						assert ( lnodeid == numnodes );
 						
 						tmpSGO->flush();
 						tmpSGO.reset();
@@ -410,7 +420,8 @@ namespace libmaus
 
 					// accumulate word offsets
 					for ( uint64_t i = 0; i < numparts; ++i )
-						vnodewordcnt[i].prefixSums();
+						// vnodewordcnt[i].prefixSums();
+						vnodewordcnt.prefixSums(i);
 					
 					::libmaus::autoarray::AutoArray<uint64_t> vnodebits(numnodes);
 					uint64_t tnumbits = 0;
@@ -449,17 +460,16 @@ namespace libmaus
 					{
 						nptempfilenames.push_back(tmpfilenamebase + "_np_" + ::libmaus::util::NumberSerialisation::formatNumber(np,6));
 						::libmaus::util::TempFileRemovalContainer::addTempFile(nptempfilenames[np]);
-						tmpCOS[np] = UNIQUE_PTR_MOVE(
-							::libmaus::aio::CheckedOutputStream::unique_ptr_type(
-								new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
-							)
-						);
+						::libmaus::aio::CheckedOutputStream::unique_ptr_type ttmpCOSnp(
+                                                                new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
+                                                        );
+						tmpCOS[np] = UNIQUE_PTR_MOVE(ttmpCOSnp);
 					}
 					
 					::libmaus::autoarray::AutoArray<uint64_t> nodebytesizes(numnodes);
 					
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t np = 0; np < static_cast<int64_t>(nodepacks.size()); ++np )
 					{
@@ -472,13 +482,11 @@ namespace libmaus
 						
 						for ( uint64_t i = 0; i < numparts; ++i )
 						{
-							tmpCIS[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::CheckedInputStream::unique_ptr_type(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]))
-							);
+							::libmaus::aio::CheckedInputStream::unique_ptr_type ttmpCISi(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]));
+							tmpCIS[i] = UNIQUE_PTR_MOVE(ttmpCISi);
 							tmpCIS[i]->seekg(vnodewordcnt[i][nplow]*sizeof(uint64_t));
-							tmpSGI[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024))
-							);
+							::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type ttmpSGIi(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024));
+							tmpSGI[i] = UNIQUE_PTR_MOVE(ttmpSGIi);
 						}
 
 						for ( uint64_t npi = nplow; npi < nphigh; ++npi )
@@ -584,7 +592,7 @@ namespace libmaus
 				uint64_t const numthreads = ::libmaus::parallel::OMPNumThreadsScope::getMaxThreads()
 			)
 			{
-				::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
+				// ::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
 				::libmaus::util::TempFileRemovalContainer::setup();
 
 				if ( ! htree.get() )
@@ -610,7 +618,7 @@ namespace libmaus
 					
 					::libmaus::autoarray::AutoArray<uint64_t> symsperpart(numparts+1);
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t i = 0; i < static_cast<int64_t>(numparts); ++i )
 					{
@@ -639,6 +647,7 @@ namespace libmaus
 					}
 				
 					uint64_t const numnodes = htree->numsyms()-1;
+					#if 0
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodebitcnt(numparts);
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodewordcnt(numparts+1);
 					for ( uint64_t i = 0; i < numparts; ++i )
@@ -646,14 +655,21 @@ namespace libmaus
 						vnodebitcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes);
 						vnodewordcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes+1);
 					}
+					#endif
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodebitcnt(numparts,numnodes);
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodewordcnt(numparts+1,numnodes+1);
 
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t partid = 0; partid < static_cast<int64_t>(numparts); ++partid )
 					{
+						#if 0
 						::libmaus::autoarray::AutoArray<uint64_t> & nodebitcnt = vnodebitcnt[partid];
 						::libmaus::autoarray::AutoArray<uint64_t> & nodewordcnt = vnodewordcnt[partid];
+						#endif
+						uint64_t * const nodebitcnt = vnodebitcnt[partid];
+						uint64_t * const nodewordcnt = vnodewordcnt[partid];
 						uint64_t lnodeid = 0;
 
 						uint64_t const partsize = partstarts[partid+1]-partstarts[partid];
@@ -907,7 +923,10 @@ namespace libmaus
 							#endif			
 						}
 
+						#if 0
 						assert ( lnodeid == nodebitcnt.size() );
+						#endif
+						assert ( lnodeid == numnodes );
 						
 						tmpSGO->flush();
 						tmpSGO.reset();
@@ -918,7 +937,8 @@ namespace libmaus
 
 					// accumulate word offsets
 					for ( uint64_t i = 0; i < numparts; ++i )
-						vnodewordcnt[i].prefixSums();
+						//vnodewordcnt[i].prefixSums();
+						vnodewordcnt.prefixSums(i);
 					
 					::libmaus::autoarray::AutoArray<uint64_t> vnodebits(numnodes);
 					uint64_t tnumbits = 0;
@@ -957,17 +977,16 @@ namespace libmaus
 					{
 						nptempfilenames.push_back(tmpfilenamebase + "_np_" + ::libmaus::util::NumberSerialisation::formatNumber(np,6));
 						::libmaus::util::TempFileRemovalContainer::addTempFile(nptempfilenames[np]);
-						tmpCOS[np] = UNIQUE_PTR_MOVE(
-							::libmaus::aio::CheckedOutputStream::unique_ptr_type(
-								new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
-							)
-						);
+						::libmaus::aio::CheckedOutputStream::unique_ptr_type ttmpCOSi(
+                                                                new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
+                                                        );
+						tmpCOS[np] = UNIQUE_PTR_MOVE(ttmpCOSi);
 					}
 					
 					::libmaus::autoarray::AutoArray<uint64_t> nodebytesizes(numnodes);
 					
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t np = 0; np < static_cast<int64_t>(nodepacks.size()); ++np )
 					{
@@ -980,13 +999,11 @@ namespace libmaus
 						
 						for ( uint64_t i = 0; i < numparts; ++i )
 						{
-							tmpCIS[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::CheckedInputStream::unique_ptr_type(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]))
-							);
+							::libmaus::aio::CheckedInputStream::unique_ptr_type ttmpCISi(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]));
+							tmpCIS[i] = UNIQUE_PTR_MOVE(ttmpCISi);
 							tmpCIS[i]->seekg(vnodewordcnt[i][nplow]*sizeof(uint64_t));
-							tmpSGI[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024))
-							);
+							::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type ttmpSGIi(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024));
+							tmpSGI[i] = UNIQUE_PTR_MOVE(ttmpSGIi);
 						}
 
 						for ( uint64_t npi = nplow; npi < nphigh; ++npi )
@@ -1092,7 +1109,7 @@ namespace libmaus
 				uint64_t const numthreads = ::libmaus::parallel::OMPNumThreadsScope::getMaxThreads()
 			)
 			{
-				::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
+				// ::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
 				::libmaus::util::TempFileRemovalContainer::setup();
 
 				::libmaus::huffman::EncodeTable<1> ET(htree);
@@ -1128,6 +1145,7 @@ namespace libmaus
 					}
 				
 					uint64_t const numnodes = htree->numsyms()-1;
+					#if 0
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodebitcnt(numparts);
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodewordcnt(numparts+1);
 					for ( uint64_t i = 0; i < numparts; ++i )
@@ -1135,14 +1153,21 @@ namespace libmaus
 						vnodebitcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes);
 						vnodewordcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes+1);
 					}
+					#endif
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodebitcnt(numparts,numnodes);
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodewordcnt(numparts+1,numnodes+1);
 
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t partid = 0; partid < static_cast<int64_t>(numparts); ++partid )
 					{
+						#if 0
 						::libmaus::autoarray::AutoArray<uint64_t> & nodebitcnt = vnodebitcnt[partid];
 						::libmaus::autoarray::AutoArray<uint64_t> & nodewordcnt = vnodewordcnt[partid];
+						#endif
+						uint64_t * const nodebitcnt = vnodebitcnt[partid];
+						uint64_t * const nodewordcnt = vnodewordcnt[partid];
 						uint64_t lnodeid = 0;
 						
 						uint64_t const numsyms = symsperpart[partid+1]-symsperpart[partid];
@@ -1414,7 +1439,8 @@ namespace libmaus
 							#endif			
 						}
 
-						assert ( lnodeid == nodebitcnt.size() );
+						// assert ( lnodeid == nodebitcnt.size() );
+						assert ( lnodeid == numnodes );
 						
 						tmpSGO->flush();
 						tmpSGO.reset();
@@ -1425,7 +1451,8 @@ namespace libmaus
 
 					// accumulate word offsets
 					for ( uint64_t i = 0; i < numparts; ++i )
-						vnodewordcnt[i].prefixSums();
+						//vnodewordcnt[i].prefixSums();
+						vnodewordcnt.prefixSums(i);
 					
 					::libmaus::autoarray::AutoArray<uint64_t> vnodebits(numnodes);
 					uint64_t tnumbits = 0;
@@ -1464,17 +1491,16 @@ namespace libmaus
 					{
 						nptempfilenames.push_back(tmpfilenamebase + "_np_" + ::libmaus::util::NumberSerialisation::formatNumber(np,6));
 						::libmaus::util::TempFileRemovalContainer::addTempFile(nptempfilenames[np]);
-						tmpCOS[np] = UNIQUE_PTR_MOVE(
-							::libmaus::aio::CheckedOutputStream::unique_ptr_type(
-								new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
-							)
-						);
+						::libmaus::aio::CheckedOutputStream::unique_ptr_type ttmpCOSnp(
+                                                                new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
+                                                        );
+						tmpCOS[np] = UNIQUE_PTR_MOVE(ttmpCOSnp);
 					}
 					
 					::libmaus::autoarray::AutoArray<uint64_t> nodebytesizes(numnodes);
 					
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t np = 0; np < static_cast<int64_t>(nodepacks.size()); ++np )
 					{
@@ -1487,13 +1513,11 @@ namespace libmaus
 						
 						for ( uint64_t i = 0; i < numparts; ++i )
 						{
-							tmpCIS[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::CheckedInputStream::unique_ptr_type(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]))
-							);
+							::libmaus::aio::CheckedInputStream::unique_ptr_type ttmpCISi(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]));
+							tmpCIS[i] = UNIQUE_PTR_MOVE(ttmpCISi);
 							tmpCIS[i]->seekg(vnodewordcnt[i][nplow]*sizeof(uint64_t));
-							tmpSGI[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024))
-							);
+							::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type ttmpSGIi(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024));
+							tmpSGI[i] = UNIQUE_PTR_MOVE(ttmpSGIi);
 						}
 
 						for ( uint64_t npi = nplow; npi < nphigh; ++npi )
@@ -1601,7 +1625,8 @@ namespace libmaus
 				uint64_t const numthreads = ::libmaus::parallel::OMPNumThreadsScope::getMaxThreads()
 			)
 			{
-				::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
+				libmaus::parallel::OMPLock cerrlock;
+				// ::libmaus::parallel::OMPNumThreadsScope numthreadsscope(numthreads);
 				::libmaus::util::TempFileRemovalContainer::setup();
 
 				::libmaus::huffman::EncodeTable<1> ET(htree);
@@ -1626,6 +1651,9 @@ namespace libmaus
 					uint64_t const numparts = pretermparts + termparts + posttermparts;
 					
 					::libmaus::autoarray::AutoArray<uint64_t> symsperpart(numparts+1);
+					#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+					std::cerr << "Allocated " << symsperpart.byteSize() << " bytes for symsperpart." << std::endl;
+					#endif
 					uint64_t jj = 0;
 					for ( uint64_t i = 0; i < pretermparts; ++i )
 					{					
@@ -1658,6 +1686,10 @@ namespace libmaus
 					}
 				
 					uint64_t const numnodes = htree->numsyms()-1;
+					#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+					std::cerr << "Num nodes " << numnodes << " numparts " << numparts << std::endl;
+					#endif
+					#if 0
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodebitcnt(numparts);
 					::libmaus::autoarray::AutoArray< ::libmaus::autoarray::AutoArray<uint64_t> > vnodewordcnt(numparts+1);
 					for ( uint64_t i = 0; i < numparts; ++i )
@@ -1665,14 +1697,24 @@ namespace libmaus
 						vnodebitcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes);
 						vnodewordcnt[i] = ::libmaus::autoarray::AutoArray<uint64_t>(numnodes+1);
 					}
+					#endif
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodebitcnt(numparts,numnodes);
+					::libmaus::autoarray::AutoArray2d<uint64_t> vnodewordcnt(numparts+1,numnodes+1);
+					#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+					std::cerr << "Bytes for numnodes*numparts*sizeof(uint64_t)=" << numnodes*numparts*sizeof(uint64_t) << std::endl;
+					#endif
 
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t partid = 0; partid < static_cast<int64_t>(numparts); ++partid )
 					{
+						#if 0
 						::libmaus::autoarray::AutoArray<uint64_t> & nodebitcnt = vnodebitcnt[partid];
 						::libmaus::autoarray::AutoArray<uint64_t> & nodewordcnt = vnodewordcnt[partid];
+						#endif
+						uint64_t * const nodebitcnt = vnodebitcnt[partid];
+						uint64_t * const nodewordcnt = vnodewordcnt[partid];
 						uint64_t lnodeid = 0;
 						
 						uint64_t const numsyms = symsperpart[partid+1]-symsperpart[partid];
@@ -1696,6 +1738,21 @@ namespace libmaus
 
 						/* read text */
 						::libmaus::autoarray::AutoArray<uint8_t> A(partsize,false);
+						
+						#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+						#if defined(_OPENMP)
+						unsigned int const tid = omp_get_thread_num();
+						#else
+						unsigned int const tid = 0;
+						#endif
+						#endif
+
+						#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+						cerrlock.lock();
+						std::cerr << "{" << tid << "}" << " Allocated " << A.byteSize() << " bytes for A array." << std::endl;
+						cerrlock.unlock();
+						#endif
+						
 						::libmaus::util::PutObject<uint8_t *> PO(A.begin());
 
 						if ( partid == static_cast<int64_t>(pretermparts) )
@@ -1718,7 +1775,14 @@ namespace libmaus
 						
 						::libmaus::autoarray::AutoArray<uint8_t> Z;
 						if ( radixsort )
+						{
 							Z = ::libmaus::autoarray::AutoArray<uint8_t>(pbright-pbleft,false);
+							#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+							cerrlock.lock();
+							std::cerr << "{" << tid << "} Allocated " << Z.byteSize() << " bytes for Z array." << std::endl;
+							cerrlock.unlock();
+							#endif
+						}
 
 						std::stack<ImpWaveletStackElement> S;
 						S.push(ImpWaveletStackElement(pbleft,pbright,0,lnumsyms,0,htree));
@@ -1961,7 +2025,8 @@ namespace libmaus
 							#endif			
 						}
 
-						assert ( lnodeid == nodebitcnt.size() );
+						// assert ( lnodeid == nodebitcnt.size() );
+						assert ( lnodeid == numnodes );
 						
 						tmpSGO->flush();
 						tmpSGO.reset();
@@ -1972,9 +2037,13 @@ namespace libmaus
 
 					// accumulate word offsets
 					for ( uint64_t i = 0; i < numparts; ++i )
-						vnodewordcnt[i].prefixSums();
+						//vnodewordcnt[i].prefixSums();
+						vnodewordcnt.prefixSums(i);
 					
 					::libmaus::autoarray::AutoArray<uint64_t> vnodebits(numnodes);
+					#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+					std::cerr << "Allocated " << vnodebits.byteSize() << " bytes for vnodebits array." << std::endl;
+					#endif
 					uint64_t tnumbits = 0;
 					for ( uint64_t nodeid = 0; nodeid < numnodes; ++nodeid )
 					{
@@ -2011,17 +2080,19 @@ namespace libmaus
 					{
 						nptempfilenames.push_back(tmpfilenamebase + "_np_" + ::libmaus::util::NumberSerialisation::formatNumber(np,6));
 						::libmaus::util::TempFileRemovalContainer::addTempFile(nptempfilenames[np]);
-						tmpCOS[np] = UNIQUE_PTR_MOVE(
-							::libmaus::aio::CheckedOutputStream::unique_ptr_type(
-								new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
-							)
-						);
+						::libmaus::aio::CheckedOutputStream::unique_ptr_type tmpCOSnp(
+                                                                new ::libmaus::aio::CheckedOutputStream(nptempfilenames[np])
+                                                        );
+						tmpCOS[np] = UNIQUE_PTR_MOVE(tmpCOSnp);
 					}
 					
 					::libmaus::autoarray::AutoArray<uint64_t> nodebytesizes(numnodes);
+					#if defined(LIBMAUS_WAVELET_UTF8TOIMPHUFFMANWAVELETTREE_DEBUG)
+					std::cerr << "Allocated " << nodebytesizes.byteSize() << " bytes per nodebytesizes array." << std::endl;
+					#endif
 					
 					#if defined(_OPENMP)
-					#pragma omp parallel for
+					#pragma omp parallel for num_threads(numthreads)
 					#endif
 					for ( int64_t np = 0; np < static_cast<int64_t>(nodepacks.size()); ++np )
 					{
@@ -2034,13 +2105,11 @@ namespace libmaus
 						
 						for ( uint64_t i = 0; i < numparts; ++i )
 						{
-							tmpCIS[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::CheckedInputStream::unique_ptr_type(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]))
-							);
+							::libmaus::aio::CheckedInputStream::unique_ptr_type ttmpCISi(new ::libmaus::aio::CheckedInputStream(tmpfilenames[i]));
+							tmpCIS[i] = UNIQUE_PTR_MOVE(ttmpCISi);
 							tmpCIS[i]->seekg(vnodewordcnt[i][nplow]*sizeof(uint64_t));
-							tmpSGI[i] = UNIQUE_PTR_MOVE(
-								::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024))
-							);
+							::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type ttmpSGIi(new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*tmpCIS[i],1024));
+							tmpSGI[i] = UNIQUE_PTR_MOVE(ttmpSGIi);
 						}
 
 						for ( uint64_t npi = nplow; npi < nphigh; ++npi )

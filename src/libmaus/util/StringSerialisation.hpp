@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(STRINGSERIALISATION_HPP)
 #define STRINGSERIALISATION_HPP
@@ -37,10 +37,11 @@ namespace libmaus
 	{
 		struct StringSerialisation : public NumberSerialisation
 		{
-			static void serialiseString(std::ostream & out, std::string const & s);
+			static uint64_t serialiseString(std::ostream & out, std::string const & s);
 			static std::string deserialiseString(std::istream & in);
 			static void serialiseStringVector ( std::ostream & out, std::vector < std::string > const & V );
 			static std::vector < std::string > deserialiseStringVector ( std::istream & in );
+			static std::vector < std::string > deserialiseStringVector ( std::string const & in );			
 			static void serialiseStringVectorVector ( std::ostream & out, std::vector < std::vector < std::string > > const & V );
 			static void serialiseStringVectorDeque ( std::ostream & out, std::deque < std::vector < std::string > > const & V );
 			static std::vector < std::vector < std::string > > deserialiseStringVectorVector ( std::istream & in );
@@ -49,6 +50,7 @@ namespace libmaus
 			static std::string serialiseDouble(double const v);
 			static double deserialiseDouble(std::istream & in);
 			static double deserialiseDouble(std::string const & s);
+			virtual ~StringSerialisation() {}
 		};
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_MERGEQUEUEELEMENT_HPP)
 #define LIBMAUS_BAMBAM_MERGEQUEUEELEMENT_HPP
 
@@ -26,19 +26,39 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * merge queue element for collating BAM decoder
+		 **/
 		struct MergeQueueElement
 		{
+			//! alignment
 			::libmaus::bambam::BamAlignment::shared_ptr_type algn;
+			//! input list index
 			uint64_t index;
 			
+			/**
+			 * constructor for invalid/null object
+			 **/
 			MergeQueueElement()
 			{
 			}
 			
-			MergeQueueElement(::libmaus::bambam::BamAlignment::shared_ptr_type ralgn,
-				uint64_t const rindex)
+			/**
+			 * construct from alignment and input list index
+			 *
+			 * @param ralgn alignment
+			 * @param rindex index of input list
+			 **/
+			MergeQueueElement(::libmaus::bambam::BamAlignment::shared_ptr_type ralgn, uint64_t const rindex)
 			: algn(ralgn), index(rindex) {}
 
+			/**
+			 * compare two alignments by name
+			 *
+			 * @param A first alignment
+			 * @param B second alignment
+			 * @return true iff A.name > B.name or A.name = B.name and A is read 2
+			 **/
 			static bool compare(
 				::libmaus::bambam::BamAlignment::shared_ptr_type const & A,
 				::libmaus::bambam::BamAlignment::shared_ptr_type const & B)
@@ -50,7 +70,13 @@ namespace libmaus
 
 				return A->isRead2();
 			}
-						
+			
+			/**
+			 * comparison operator calling compare method
+			 *
+			 * @param o other merge queue element
+			 * @return compare(algn,o.algn)
+			 **/			
 			bool operator<(MergeQueueElement const & o) const
 			{
 				return compare(algn,o.algn);

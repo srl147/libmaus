@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_BAMSEQENCODETABLE_HPP)
 #define LIBMAUS_BAMBAM_BAMSEQENCODETABLE_HPP
 
@@ -25,10 +25,17 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * helper class for decoding query sequences
+		 **/
 		struct BamSeqEncodeTable
 		{
+			//! mapping table
 			::libmaus::autoarray::AutoArray<uint8_t> A;
 		
+			/**
+			 * constructor
+			 **/
 			BamSeqEncodeTable()
 			: A(256)
 			{
@@ -39,6 +46,12 @@ namespace libmaus
 					A [ s[i] ] = i;
 			}
 			
+			/**
+			 * get code for base i
+			 *
+			 * @param i base symbol
+			 * @return code for i
+			 **/
 			uint8_t operator[](uint8_t const i) const
 			{
 				return A[i];

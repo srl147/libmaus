@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TRIPLEEDGEOPERATIONS_HPP)
 #define TRIPLEEDGEOPERATIONS_HPP
@@ -148,9 +148,12 @@ namespace libmaus
 				::libmaus::autoarray::AutoArray<input_ptr_type> inputs(inputfilenames.size());
 				
 				for ( uint64_t i = 0; i < inputfilenames.size(); ++i )
-					inputs[i] = UNIQUE_PTR_MOVE(input_ptr_type (
-						new input_type ( inputfilenames[i] , 32*1024 )
-						));
+				{
+					input_ptr_type tinputsi (
+                                                new input_type ( inputfilenames[i] , 32*1024 )
+                                                );
+					inputs[i] = UNIQUE_PTR_MOVE(tinputsi);
+				}
 						
 				::libmaus::autoarray::AutoArray < ::libmaus::graph::TripleEdge > triples(inputfilenames.size());
 				::libmaus::autoarray::AutoArray < bool > ok(inputfilenames.size());

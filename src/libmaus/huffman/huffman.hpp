@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HUFFMAN_HPP)
 #define HUFFMAN_HPP
@@ -174,13 +174,13 @@ namespace libmaus
 	}
 }
 
-#include "HuffmanBase.hpp"
+#include <libmaus/huffman/HuffmanBase.hpp>
 
-#include "EncodeTable.hpp"
-#include "CompressTable.hpp"
-#include "DecodeTable.hpp"
+#include <libmaus/huffman/EncodeTable.hpp>
+#include <libmaus/huffman/CompressTable.hpp>
+#include <libmaus/huffman/DecodeTable.hpp>
 
-#include "hufEncodeString.hpp"
-#include "HuffmanSorting.hpp"
+#include <libmaus/huffman/hufEncodeString.hpp>
+#include <libmaus/huffman/HuffmanSorting.hpp>
 
 #endif

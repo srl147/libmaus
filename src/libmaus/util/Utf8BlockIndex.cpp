@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #include <libmaus/util/Utf8BlockIndex.hpp>
 
 libmaus::util::Utf8BlockIndex::Utf8BlockIndex()
@@ -108,10 +108,9 @@ libmaus::util::Utf8BlockIndex::unique_ptr_type libmaus::util::Utf8BlockIndex::co
 	::libmaus::autoarray::AutoArray< ::libmaus::aio::CheckedInputStream::unique_ptr_type > thrstreams(numthreads,false);
 	for ( uint64_t t = 0; t < numthreads; ++t )
 	{
-		thrstreams[t] = UNIQUE_PTR_MOVE(
-			::libmaus::aio::CheckedInputStream::unique_ptr_type
-			(new ::libmaus::aio::CheckedInputStream(fn))
-		);
+		::libmaus::aio::CheckedInputStream::unique_ptr_type thrstreamst
+                        (new ::libmaus::aio::CheckedInputStream(fn));
+		thrstreams[t] = UNIQUE_PTR_MOVE(thrstreamst);
 	}
 	
 	#if defined(_OPENMP)

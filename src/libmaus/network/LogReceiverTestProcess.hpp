@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_NETWORK_LOGRECEIVERTESTPROCESS_HPP)
 #define LIBMAUS_NETWORK_LOGRECEIVERTESTPROCESS_HPP
 
@@ -51,7 +51,8 @@ namespace libmaus
 				std::vector<int> const & rcloseFds,
 				DispatchCallback * dc)
 			{
-				return UNIQUE_PTR_MOVE(unique_ptr_type(new this_type(rsid,rloghostname,rport,rid,rcloseFds,dc)));
+				unique_ptr_type ptr(new this_type(rsid,rloghostname,rport,rid,rcloseFds,dc));
+				return UNIQUE_PTR_MOVE(ptr);
 			}
 
 			LogReceiverTestProcess(

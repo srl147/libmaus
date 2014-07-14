@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_BAMFLAGBASE)
 #define LIBMAUS_BAMBAM_BAMFLAGBASE
 
@@ -28,8 +28,12 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * base class for BAM flags
+		 **/
 		struct BamFlagBase
 		{
+			//! alignment flags
 			enum bam_flags
 			{
 				LIBMAUS_BAMBAM_FPAIRED = (1u << 0),
@@ -42,9 +46,11 @@ namespace libmaus
 				LIBMAUS_BAMBAM_FREAD2 = (1u << 7),
 				LIBMAUS_BAMBAM_FSECONDARY = (1u << 8),
 				LIBMAUS_BAMBAM_FQCFAIL = (1u << 9),
-				LIBMAUS_BAMBAM_FDUP = (1u << 10)
+				LIBMAUS_BAMBAM_FDUP = (1u << 10),
+				LIBMAUS_BAMBAM_FSUPPLEMENTARY = (1u << 11)
 			};
 			
+			//! cigar operator codes
 			enum bam_cigar_ops
 			{
 				LIBMAUS_BAMBAM_CMATCH = 0,
@@ -58,6 +64,12 @@ namespace libmaus
 				LIBMAUS_BAMBAM_CDIFF = 8
 			};			
 
+			/**
+			 * convert a string to an alignment flag bit
+			 *
+			 * @param s string representation of flag (e.g. PAIRED,PROPER_PAIR,...)
+			 * @return numeric value for flag s
+			 **/
 			static uint64_t stringToFlag(std::string const & s)
 			{
 				if ( s == "PAIRED" )
@@ -82,6 +94,8 @@ namespace libmaus
 					return ::libmaus::bambam::BamFlagBase::LIBMAUS_BAMBAM_FQCFAIL;
 				else if ( s == "DUP" )
 					return ::libmaus::bambam::BamFlagBase::LIBMAUS_BAMBAM_FDUP;
+				else if ( s == "SUPPLEMENTARY" )
+					return ::libmaus::bambam::BamFlagBase::LIBMAUS_BAMBAM_FSUPPLEMENTARY;
 				else
 				{
 					::libmaus::exception::LibMausException se;
@@ -91,6 +105,12 @@ namespace libmaus
 				}
 			}
 
+			/**
+			 * convert comma separated flags in string representation to numeric flag mask
+			 *
+			 * @param s flag string
+			 * @return numeric flags bit mask
+			 **/
 			static uint64_t stringToFlags(std::string const & s)
 			{
 				std::deque<std::string> const tokens = ::libmaus::util::stringFunctions::tokenize(s,std::string(","));
@@ -101,27 +121,7 @@ namespace libmaus
 					
 				return flags;
 			}
-		};
-		
-		inline std::ostream & operator<<(std::ostream & out, BamFlagBase::bam_flags const f)
-		{
-			switch ( f )
-			{
-				case BamFlagBase::LIBMAUS_BAMBAM_FPAIRED: out << "LIBMAUS_BAMBAM_FPAIRED"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FPROPER_PAIR: out << "LIBMAUS_BAMBAM_FPROPER_PAIR"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FUNMAP: out << "LIBMAUS_BAMBAM_FUNMAP"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FMUNMAP: out << "LIBMAUS_BAMBAM_FMUNMAP"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FREVERSE: out << "LIBMAUS_BAMBAM_FREVERSE"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FMREVERSE: out << "LIBMAUS_BAMBAM_FMREVERSE"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FREAD1: out << "LIBMAUS_BAMBAM_FREAD1"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FREAD2: out << "LIBMAUS_BAMBAM_FREAD2"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FSECONDARY: out << "LIBMAUS_BAMBAM_FSECONDARY"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FQCFAIL: out << "LIBMAUS_BAMBAM_FQCFAIL"; break;
-				case BamFlagBase::LIBMAUS_BAMBAM_FDUP: out << "LIBMAUS_BAMBAM_FDUP"; break;
-			}
-			
-			return out;
-		}
+		};		
 	}
 }
 #endif

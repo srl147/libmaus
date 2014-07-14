@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HISTOGRAMSET_HPP)
 #define HISTOGRAMSET_HPP
@@ -26,21 +26,49 @@ namespace libmaus
 {
 	namespace util
 	{
+		/**
+		 * set of histograms class
+		 **/
 		struct HistogramSet
 		{
+			//! this type
 			typedef HistogramSet this_type;
+			//! unique pointer type
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 			
+			//! histograms array
 			::libmaus::autoarray::AutoArray < Histogram::unique_ptr_type > H;
 			
+			/**
+			 * constructor
+			 *
+			 * @param numhist number of histograms
+			 * @param lowsize lower size of histograms to be constructed
+			 **/
 			HistogramSet(uint64_t const numhist, uint64_t const lowsize);
 			
+			/**
+			 * get histogram for i
+			 *
+			 * @param i index
+			 * @return histogram for i
+			 **/
 			Histogram & operator[](uint64_t const i)
 			{
 				return *(H[i]);
 			}
 			
+			/**
+			 * print histogram set to out
+			 *
+			 * @param out output stream
+			 **/
 			void print(std::ostream & out) const;
+			/**
+			 * merge all histograms to a single one and return it
+			 *
+			 * @return merged histogram in a unique pointer
+			 **/
 			Histogram::unique_ptr_type merge() const;
 		};
 	}

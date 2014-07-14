@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,8 +15,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
+#include <libmaus/lf/MultiRankCacheLF.hpp>
 #include <libmaus/bp/BalancedParentheses.hpp>
 #include <libmaus/util/IncreasingStack.hpp>
 #include <libmaus/rank/CacheLineRank.hpp>
@@ -46,6 +47,8 @@
 #include <libmaus/rank/ERank.hpp>
 #include <libmaus/rank/ERank222BP.hpp>
 #include <libmaus/rank/ERank222BAppend.hpp>
+#include <libmaus/rank/ERank222BAppendDynamic.hpp>
+#include <libmaus/rank/FastRank.hpp>
 
 #include <libmaus/rank/log2table.hpp>
 
@@ -217,7 +220,7 @@ bool checkE2Append(unsigned int const rvecsize)
 	unsigned int const vecsize = ((rvecsize + 63) / 64) * 64;
 
 	std::cerr 
-		<< "rank class " << ::libmaus::util::Demangle::demangle<eclass>() << " "
+		<< "rank class " << ::libmaus::util::Demangle::demangle<eappclass>() << " "
 		<< "writer type " << ::libmaus::util::Demangle::demangle<writer_type>() << " "
 		<< "data type " << ::libmaus::util::Demangle::demangle<data_type>() << std::endl;
 
@@ -229,50 +232,47 @@ bool checkE2Append(unsigned int const rvecsize)
 	
 	for ( unsigned int i = 0; i < loops; ++i )
 	{
+		std::cerr << "loop " << i+1 << std::endl;
+	
+		// initialize random bit vector
 		writer_type B(AA.get());
 		randomBitVect(B,vecsize);
 
+		// initialize rank dictionary on AA
 		eclass E2(AA.get(),vecsize);
-		eappclass E2APP(AA.get(),vecsize);
 		
 		#if 0
-		while ( E2APP.nc != E2APP.n )
-		{
-			uint64_t toapp = (rand() % (E2APP.n-E2APP.nc)) + 1;
-			E2APP.append( toapp );	
-			
-			for ( unsigned int j = 0; j < E2APP.nc; ++j )
-				assert ( E2APP.rank1(j) == E2.rank1(j) );
-		}
+		::libmaus::autoarray::AutoArray< data_type > AAA( AA.size(), false );
+		eappclass E2APP(AAA.get(),vecsize);
+		#else
+		libmaus::rank::ERank222BAppendDynamic E2APP;
 		#endif
 		
-		#if 0
-		assert ( E2.nummini == E2APP.nummini );
-		assert ( E2.numsuper == E2APP.numsuper );
+		std::cerr << ::libmaus::util::Demangle::demangle< libmaus::rank::ERank222BAppendDynamic >() << " loop " << (i+1) << std::endl;
 		
-		for ( uint64_t i = 0; i < E2.nummini; ++i )
+		for ( uint64_t j = 0; j < vecsize; ++j )
 		{
-			bool const lok = E2.M[i] == E2APP.M[i];
+			bool const bit = libmaus::bitio::getBit(AA.get(),j);
+			E2APP.appendBit(bit);
 			
-			if ( ! lok )
+			if ( j % 1921 == 0 )
 			{
-				std::cerr << "Failure for i=" << i << " E2.M=" << E2.M[i] << " E2APP.M=" << E2APP.M[i] << std::endl;
-			}
-			
-			assert ( lok );
-		}
-		for ( uint64_t i = 0; i < E2.numsuper; ++i )
-		{
-			bool const lok = E2.S[i] == E2APP.S[i];
-			
-			if ( ! lok )
-			{
-				std::cerr << "Failure for i=" << i << std::endl;
-			}
+				#if defined(_OPENMP)
+				#pragma omp parallel for
+				#endif
+				for ( int k = 0; k <= static_cast<int>(j); ++k )
+					assert ( E2APP.rank1(k) == E2.rank1(k) );
 				
-			assert ( lok );
+				#if defined(_OPENMP)
+				#pragma omp parallel for
+				#endif
+				for ( int k = 0; k <= static_cast<int>(j); ++k )
+					if ( libmaus::bitio::getBit(AA.get(),k) )
+						assert ( E2APP.select1(E2APP.rank1(k)-1) == static_cast<unsigned int>(k) );
+					else
+						assert ( E2APP.select0(E2APP.rank0(k)-1) == static_cast<unsigned int>(k) );
+			}
 		}
-		#endif
 	}
 	
 	return ok;
@@ -1698,10 +1698,157 @@ void checkBPS()
 	BalancedParentheses BP(PUUB);
 }
 
+#include <libmaus/rank/RunLengthBitVectorStream.hpp>
+#include <libmaus/rank/RunLengthBitVector.hpp>
+#include <libmaus/rank/RunLengthBitVectorGenerator.hpp>
+
+void testrl(std::vector<bool> const & B)
+{
+	
+	std::stringstream ostr;
+	std::stringstream indexstr;
+	libmaus::rank::RunLengthBitVectorGenerator RLBVG(ostr,indexstr,B.size(),256);
+	
+	for ( uint64_t i = 0; i < B.size(); ++i )
+		RLBVG.putbit(B[i]);
+	uint64_t const size = RLBVG.flush();
+	
+	assert ( size == ostr.str().size() );
+	// std::cerr << "size=" << size << " str=" << ostr.str().size() << std::endl;
+	
+	#if 1
+	{
+		ostr.clear();
+		ostr.seekg(0,std::ios::beg);
+		libmaus::rank::RunLengthBitVectorStream RLBV(ostr);
+		
+		if ( RLBV.n != B.size() )
+		{
+			std::cerr << B.size() << "\t" << RLBV.n << std::endl;
+		}
+		
+		assert ( RLBV.n == B.size() );
+		
+		uint64_t r1 = 0;
+		for ( uint64_t i = 0; i < B.size(); ++i )
+		{
+			assert ( r1 == RLBV.rankm1(i) );
+			if ( B[i] )
+				r1++;
+			// std::cerr << i << "\t" << B[i] << "\t" << RLBV.get(i) << "\t" << r1 << "\t" << RLBV.rank1(i) << std::endl;
+			assert ( B[i] == RLBV[i] );
+			assert ( r1 == RLBV.rank1(i) );
+		}
+	}
+	#endif
+
+	{
+		ostr.clear();
+		ostr.seekg(0,std::ios::beg);
+		libmaus::rank::RunLengthBitVector RLBVint(ostr);
+
+		uint64_t r1 = 0;
+		for ( uint64_t i = 0; i < B.size(); ++i )
+		{
+			assert ( r1 == RLBVint.rankm1(i) );
+			if ( B[i] )
+				r1++;
+			// std::cerr << i << "\t" << B[i] << "\t" << RLBV.get(i) << "\t" << r1 << "\t" << RLBV.rank1(i) << std::endl;
+			assert ( B[i] == RLBVint[i] );
+			assert ( r1 == RLBVint.rank1(i) );
+			unsigned int sym;
+			
+			assert ( r1 == RLBVint.inverseSelect1(i,sym) );
+		}
+	}
+}
+
+void testrl()
+{
+	{
+	std::vector<bool> B;
+	B.push_back(0);
+	B.push_back(1);
+	B.push_back(0);
+	B.push_back(0);
+	B.push_back(1);
+	B.push_back(1);
+	B.push_back(1);
+	B.push_back(0);
+	B.push_back(0);
+	B.push_back(1);
+	B.push_back(1);
+	
+	testrl(B);
+	}
+	
+	{
+		srand(5);
+		for ( uint64_t z = 0; z < 1024; ++z )
+		{
+			std::vector<bool> B;
+			uint64_t const r = (rand() % (32*1024))+1;
+			std::cerr << "r=" << r << std::endl;
+			for ( uint64_t i = 0; i < r; ++i )
+				B.push_back(rand() & 1);
+			testrl(B);
+		}
+	
+	}
+}
+
 int main()
 {
 	initRand();
-
+	
+	{
+		char s[] = { 0,1,1,0,1,1,2,0,1,0,1,1,2,1,0,0,1,0,0,0,1,1,1,0};
+		uint64_t const n = sizeof(s)/sizeof(s[0]);
+		
+		{
+			libmaus::rank::FastRank<uint8_t,uint32_t> R(&s[0],n);
+			std::map<char,uint64_t> M;
+			for ( uint64_t i = 0; i < n; ++i )
+			{
+				M[s[i]]++;
+				for ( uint64_t j = 0; j < 256; ++j )
+				{
+					int64_t const expect = M[j];
+					int64_t const got = R.rank(j,i);
+					
+					if ( expect != got )
+					{
+						std::cerr << "i=" << i << " j=" << j << " expected " << expect << " got " << got << std::endl;
+						assert ( expect == got );
+					}
+				}
+			}
+		}
+		{
+			libmaus::rank::FastRank<uint8_t,uint32_t> R(&s[0],n,2);
+			std::map<char,uint64_t> M;
+			for ( uint64_t i = 0; i < n; ++i )
+			{
+				M[s[i]]++;
+				for ( uint64_t j = 0; j < 256; ++j )
+				{
+					int64_t const expect = M[j];
+					int64_t const got = R.rank(j,i);
+					
+					if ( expect != got )
+					{
+						std::cerr << "i=" << i << " j=" << j << " expected " << expect << " got " << got << std::endl;
+						assert ( expect == got );
+					}
+				}
+			}
+		}
+	}
+	
+	exit(0);
+	
+	testrl();
+	checkE2Append(1024*1024);
 	callWaveletTreeRankSelectRandom(128);
 	waveletTreeSmallerLargerRandom(10);
 	testCacheLineRank();
@@ -1714,7 +1861,6 @@ int main()
 	waveletTreeRankSelect();
 	waveletTreeCheckRMQ();
 
-	checkE2Append(5*256*1024);
 	checkBPS();
 	checkStreams8(1000000);
 	checkStreams64(10000000);

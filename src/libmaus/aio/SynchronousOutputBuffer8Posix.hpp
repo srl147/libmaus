@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,8 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
-
+*/
 #if ! defined(LIBMAUS_AIO_SYNCHRONOUSOUTPUTBUFFER8POSIX_HPP)
 #define LIBMAUS_AIO_SYNCHRONOUSOUTPUTBUFFER8POSIX_HPP
 
@@ -30,45 +29,36 @@ namespace libmaus
 {
 	namespace aio
 	{
+		/**
+		 * synchronous block wise output for 8 byte (uint64_t) numbers. this class does not keep
+		 * the output file open across method calls.
+		 **/
 		struct SynchronousOutputBuffer8Posix
 		{
+			//! this type
 			typedef SynchronousOutputBuffer8Posix this_type;
+			//! unique pointer type
 			typedef ::libmaus::util::unique_ptr < this_type > :: type unique_ptr_type;
 			
+			//! value type
 			typedef uint64_t value_type;
 
+			//! output file name
 			std::string const filename;
+			//! output buffer
 			::libmaus::autoarray::AutoArray<value_type> B;
+			//! output buffer start pointer
 			value_type * const pa;
+			//! output buffer current pointer
 			value_type * pc;
+			//! output buffer end pointer
 			value_type * const pe;
+			//! output position
 			value_type ptr;
 
-			SynchronousOutputBuffer8Posix(std::string const & rfilename, uint64_t const bufsize, bool truncate = true)
-			: filename(rfilename), B(bufsize), pa(B.get()), pc(pa), pe(pa+B.getN()), ptr(0)
-			{
-				if ( truncate )
-				{
-					int const tres = ::truncate(filename.c_str(),0);
-					if ( tres )
-					{
-						::libmaus::exception::LibMausException se;
-						se.getStream() << "SynchronousOutputBuffer8Posix::SynchronousOutputBuffer8Posix(): truncate() failed: " << strerror(errno) << std::endl;
-						se.finish();
-						throw se;
-					}
-				}
-                        }
-			~SynchronousOutputBuffer8Posix()
-			{
-				flush();
-			}
-
-                        void flush()
-                        {
-                                writeBuffer();
-                        }
-
+			/**
+			 * write contents of the buffer to the file
+			 **/
                         void writeBuffer()
                         {
                                 int const fd = open(filename.c_str(),O_WRONLY);
@@ -129,6 +119,50 @@ namespace libmaus
                                 pc = pa;
                         }
 
+			public:
+			/**
+			 * constructor
+			 *
+			 * @param rfilename output file name
+			 * @param bufsize output buffer size
+			 * @param truncate if true, then truncate during constructio
+			 **/
+			SynchronousOutputBuffer8Posix(std::string const & rfilename, uint64_t const bufsize, bool truncate = true)
+			: filename(rfilename), B(bufsize), pa(B.get()), pc(pa), pe(pa+B.getN()), ptr(0)
+			{
+				if ( truncate )
+				{
+					int const tres = ::truncate(filename.c_str(),0);
+					if ( tres )
+					{
+						::libmaus::exception::LibMausException se;
+						se.getStream() << "SynchronousOutputBuffer8Posix::SynchronousOutputBuffer8Posix(): truncate() failed: " << strerror(errno) << std::endl;
+						se.finish();
+						throw se;
+					}
+				}
+                        }
+                        /**
+                         * destructor, flushes the buffer
+                         **/
+			~SynchronousOutputBuffer8Posix()
+			{
+				flush();
+			}
+
+			/**
+			 * flush the buffer
+			 **/
+                        void flush()
+                        {
+                                writeBuffer();
+                        }
+
+                        /**
+                         * put one element c in the buffer
+                         *
+                         * @param c element to be put in the buffer
+                         **/
                         void put(value_type const c)
                         {
                                 *(pc++) = c;
@@ -138,5 +172,4 @@ namespace libmaus
                 };
 	}
 }
-
 #endif

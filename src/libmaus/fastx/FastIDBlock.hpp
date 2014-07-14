@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(FASTIDBLOCK_HPP)
 #define FASTIDBLOCK_HPP
@@ -37,8 +37,13 @@ namespace libmaus
 			std::string * ids;
 			uint64_t idbase;
 			
+			private:
+			FastIDBlock & operator=(FastIDBlock const &);
+			FastIDBlock(FastIDBlock const &);
+			
+			public:
 			FastIDBlock ( )
-			: numid(0), blocksize(0), aids(numid,false), ids(aids.get()), idbase(0) {}
+			: blockid(0), numid(0), blocksize(0), aids(numid,false), ids(aids.get()), idbase(0) {}
 			
 			void setup(uint64_t rnumid)
 			{

@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,12 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(TERMINATABLESYNCHRONOUSHEAP_HPP)
 #define TERMINATABLESYNCHRONOUSHEAP_HPP
 
-#include "SynchronousHeap.hpp"
+#include <libmaus/parallel/SynchronousHeap.hpp>
 
 #if defined(LIBMAUS_HAVE_PTHREADS)
 namespace libmaus
@@ -30,26 +30,32 @@ namespace libmaus
                 template<typename value_type, typename compare = ::std::less<value_type> >
                 struct TerminatableSynchronousHeap : public SynchronousHeap<value_type,compare>
                 {
-                        typedef SynchronousHeap<value_type> parent_type;
+                        typedef SynchronousHeap<value_type,compare> parent_type;
 
-                        PosixMutex terminatelock;
-                        volatile bool terminated;
+                        PosixSpinLock terminatelock;
+                        volatile uint64_t terminated;
+                        uint64_t const terminatedthreshold;
                         
-                        TerminatableSynchronousHeap()
+                        TerminatableSynchronousHeap(uint64_t const rterminatedthreshold = 1)
+                        : terminated(0), terminatedthreshold(rterminatedthreshold)
                         {
-                                terminated = false;
+                        }
+
+                        TerminatableSynchronousHeap(compare const & comp, uint64_t const rterminatedthreshold = 1)
+                        : parent_type(comp), terminated(0), terminatedthreshold(rterminatedthreshold)
+                        {
                         }
                         
                         void terminate()
                         {
                                 terminatelock.lock();
-                                terminated = true;
+                                terminated++;
                                 terminatelock.unlock();
                         }
                         bool isTerminated()
                         {
                                 terminatelock.lock();
-                                bool const isTerm = terminated;
+                                bool const isTerm = terminated >= terminatedthreshold;
                                 terminatelock.unlock();
                                 return isTerm;
                         }
@@ -59,7 +65,7 @@ namespace libmaus
                                 while ( !parent_type::semaphore.timedWait() )
                                 {
                                         terminatelock.lock();
-                                        bool const isterminated = terminated;
+                                        bool const isterminated = terminated >= terminatedthreshold;
                                         terminatelock.unlock();
                                         
                                         if ( isterminated )

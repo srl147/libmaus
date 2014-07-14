@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/network/LogReceiver.hpp>
 #include <libmaus/aio/CheckedOutputStream.hpp>
@@ -35,9 +35,11 @@ std::string libmaus::network::LogReceiver::computeSessionId()
 	uint64_t const id,
 	::libmaus::network::DispatchCallback * dc)
 {
-	return UNIQUE_PTR_MOVE(::libmaus::network::LogReceiverTestProcess::construct(
-		sid,hostname,port,id,getOpenFds(),dc)
+	::libmaus::network::LogReceiverTestProcess::unique_ptr_type ptr(
+		::libmaus::network::LogReceiverTestProcess::construct(
+                sid,hostname,port,id,getOpenFds(),dc)
 	);
+	return UNIQUE_PTR_MOVE(ptr);
 }
 
 std::vector<int> libmaus::network::LogReceiver::getOpenFds() const

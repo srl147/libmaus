@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,57 +15,135 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_SNAPPYALIGNMENTMERGEINPUT_HPP)
 #define LIBMAUS_BAMBAM_SNAPPYALIGNMENTMERGEINPUT_HPP
 
 #include <libmaus/bambam/BamAlignmentNameComparator.hpp>
 #include <libmaus/bambam/BamAlignmentHeapComparator.hpp>
 #include <libmaus/bambam/BamDecoder.hpp>
-#include <libmaus/lz/SnappyCompress.hpp>
+#include <libmaus/lz/SnappyOffsetFileInputStream.hpp>
 #include <queue>
 
 namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * merging read back class for snappy encoded, sorted alignment blocks
+		 **/
 		struct SnappyAlignmentMergeInput
 		{
+			//! this type
 			typedef SnappyAlignmentMergeInput this_type;
+			//! unique pointer type
 			typedef libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 
+			private:
+			//! file stream
+			libmaus::aio::CheckedInputStream::unique_ptr_type Psingle;
+			//! block index
 			std::vector < std::pair < uint64_t, uint64_t > > index;
+			//! snappy decoder array
 			libmaus::autoarray::AutoArray < libmaus::lz::SnappyOffsetFileInputStream::unique_ptr_type > streams;
+			//! alignments
 			libmaus::autoarray::AutoArray < libmaus::bambam::BamAlignment > data;
+			//! alignment name comparator
 			libmaus::bambam::BamAlignmentNameComparator const namecomp;
+			//! heap comparator
 			libmaus::bambam::BamAlignmentHeapComparator < libmaus::bambam::BamAlignmentNameComparator > const heapcomp;
+			//! heap
 			std::priority_queue<uint64_t,std::vector<uint64_t>,libmaus::bambam::BamAlignmentHeapComparator < libmaus::bambam::BamAlignmentNameComparator > > Q;
 			
+			public:
+			/**
+			 * construct decoder
+			 *
+			 * @param rindex block index
+			 * @param fn file name
+			 * @return decoder object
+			 **/
 			static unique_ptr_type construct(std::vector < std::pair < uint64_t, uint64_t > > const & rindex, std::string const & fn)
 			{
-				return UNIQUE_PTR_MOVE(unique_ptr_type(new this_type(rindex,fn)));
+				unique_ptr_type ptr(new this_type(rindex,fn));
+				return UNIQUE_PTR_MOVE(ptr);
 			}
 			
+			/**
+			 * constructor
+			 *
+			 * @param rindex block index
+			 * @param fn file name
+			 **/
 			SnappyAlignmentMergeInput(
 				std::vector < std::pair < uint64_t, uint64_t > > const & rindex,
 				std::string const & fn)
 			: index(rindex), streams(index.size()), data(index.size()), namecomp(static_cast<uint8_t const *>(0)), heapcomp(namecomp,data.begin()), Q(heapcomp)
 			{
+				bool openok = true;
+			
+				try
+				{
+					for ( uint64_t i = 0; i < index.size(); ++i )
+						if ( index[i].second )
+						{
+							libmaus::lz::SnappyOffsetFileInputStream::unique_ptr_type tstreamsi(
+                                	                                        new libmaus::lz::SnappyOffsetFileInputStream(fn,index[i].first)
+                                        	                        );
+							streams [ i ] = UNIQUE_PTR_MOVE(tstreamsi);
+						}
+				}
+				catch(std::exception const & ex)
+				{
+					openok = false;
+				}
+				
+				if ( ! openok )
+				{
+					std::cerr << "[V] failed to open a file handle for each single collation block, trying to merge through a single file handle" << std::endl;
+
+					for ( uint64_t i = 0; i < index.size(); ++i )
+						if ( index[i].second )
+							streams[i].reset();
+					
+					libmaus::aio::CheckedInputStream::unique_ptr_type TCIS(new libmaus::aio::CheckedInputStream(fn));
+					Psingle	= UNIQUE_PTR_MOVE(TCIS);
+
+					for ( uint64_t i = 0; i < index.size(); ++i )
+						if ( index[i].second )
+						{
+							libmaus::lz::SnappyOffsetFileInputStream::unique_ptr_type tstreamsi
+							(
+                                	                	new libmaus::lz::SnappyOffsetFileInputStream(*Psingle,index[i].first)
+                                        	        );
+							streams [ i ] = UNIQUE_PTR_MOVE(tstreamsi);
+						}
+				}
+					
 				for ( uint64_t i = 0; i < index.size(); ++i )
-					if ( index[i].second-- )
+					if ( index[i].second )
 					{
-						streams [ i ] =
-							UNIQUE_PTR_MOVE(
-								libmaus::lz::SnappyOffsetFileInputStream::unique_ptr_type(
-									new libmaus::lz::SnappyOffsetFileInputStream(fn,index[i].first)
-								)
-							);
-							
-						assert ( libmaus::bambam::BamDecoder::readAlignment(*(streams[i]),data[i],0,false) );
+						index[i].second -= 1;
+
+						#if !defined(NDEBUG)
+						bool const alok = 
+						#endif
+						        libmaus::bambam::BamDecoder::readAlignmentGz(*(streams[i]),data[i],0,false);
+						        
+						#if !defined(NDEBUG)
+						assert ( alok );
+						#endif
+						
 						Q.push(i);
 					}
 			}
 			
+			/**
+			 * decode next alignment
+			 *
+			 * @param algn reference to alignment object to be filled
+			 * @return true iff next alignment could be read, false when no more alignments are available
+			 **/
 			bool readAlignment(libmaus::bambam::BamAlignment & algn)
 			{
 				if ( Q.empty() )
@@ -84,7 +162,15 @@ namespace libmaus
 				
 				if ( index[t].second-- )
 				{
-					assert ( libmaus::bambam::BamDecoder::readAlignment(*(streams[t]),data[t],0,false) );
+					#if !defined(NDEBUG)
+					bool const alok = 
+					#endif
+					        libmaus::bambam::BamDecoder::readAlignmentGz(*(streams[t]),data[t],0,false);
+					        
+					#if !defined(NDEBUG)
+					assert ( alok );
+					#endif
+					
 					Q.push(t);
 				}
 					

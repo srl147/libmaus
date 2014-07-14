@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,24 +15,171 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/aio/AsynchronousBufferReader.hpp>
 #include <libmaus/aio/AsynchronousWriter.hpp>
 #include <libmaus/timing/RealTimeClock.hpp>
 
+#include <libmaus/aio/PosixFdInputStream.hpp>
+
 #include <vector>
 #include <map>
 #include <cmath>
 
+void testPosixFdInput()
+{
+	::libmaus::autoarray::AutoArray<unsigned char> A = libmaus::util::GetFileSize::readFile("configure");
+	libmaus::aio::PosixFdInputStream PFIS("configure",64*1024);
+	
+	PFIS.clear();
+	PFIS.seekg(0,std::ios::end);
+	assert ( static_cast<int64_t>(PFIS.tellg()) == static_cast<int64_t>(A.size()) );
+	PFIS.clear();
+	PFIS.seekg(0,std::ios::beg);
+	uint64_t const inc = 127;
+	
+	for ( uint64_t i = 0; i <= A.size(); i += std::min(inc,A.size()-i) )
+	{
+		PFIS.clear();
+		PFIS.seekg(i,std::ios::beg);
+	
+		int c = -1;
+		uint64_t p = i;
+		while ( ( c = PFIS.get() ) != std::istream::traits_type::eof() )
+		{
+			assert ( c == A[p++] );
+		}
+		
+		assert ( p == A.size() );
+	
+		// if ( (i & (1024-1)) == 0 )
+			std::cerr << "i=" << i << std::endl;
+			
+		if ( i == A.size() )
+			break;			
+	}	
+}
+
+#include <libmaus/aio/PosixFdOutputStream.hpp>
+#include <libmaus/aio/LinuxStreamingPosixFdOutputStream.hpp>
+
 int main(int argc, char * argv[])
 {
+	{
+		std::string const fn = "nonexistant.test.file";
+		std::string const text1 = "Hello world.";
+		std::string const text2 = "new text";
+		
+		{
+			libmaus::aio::PosixFdOutputStream PFOS(fn);
+			PFOS << text1;
+			PFOS.flush();
+		}
+		
+		{
+			libmaus::aio::CheckedInputStream CIS(fn);
+			libmaus::autoarray::AutoArray<char> C(text1.size());
+			CIS.read(C.begin(),C.size());
+			assert ( CIS.get() < 0 );
+			assert ( strncmp ( text1.c_str(), C.begin(), C.size() ) == 0 );
+		}
+
+		{
+			libmaus::aio::PosixFdOutputStream PFOS(fn);
+			PFOS << text2;
+			PFOS.flush();
+		}
+		
+		{
+			libmaus::aio::CheckedInputStream CIS(fn);
+			libmaus::autoarray::AutoArray<char> C(text2.size());
+			CIS.read(C.begin(),C.size());
+			assert ( CIS.get() < 0 );
+			assert ( strncmp ( text2.c_str(), C.begin(), C.size() ) == 0 );
+		}
+		
+		remove(fn.c_str());
+	}
+
+	{
+		std::string const fn = "nonexistant.test.file";
+		std::string const text1 = "Hello world.";
+		std::string const text2 = "new text";
+		
+		{
+			libmaus::aio::LinuxStreamingPosixFdOutputStream PFOS(fn);
+			PFOS << text1;
+			PFOS.flush();
+		}
+		
+		{
+			libmaus::aio::CheckedInputStream CIS(fn);
+			libmaus::autoarray::AutoArray<char> C(text1.size());
+			CIS.read(C.begin(),C.size());
+			assert ( CIS.get() < 0 );
+			assert ( strncmp ( text1.c_str(), C.begin(), C.size() ) == 0 );
+		}
+
+		{
+			libmaus::aio::LinuxStreamingPosixFdOutputStream PFOS(fn);
+			PFOS << text2;
+			PFOS.flush();
+		}
+		
+		{
+			libmaus::aio::CheckedInputStream CIS(fn);
+			libmaus::autoarray::AutoArray<char> C(text2.size());
+			CIS.read(C.begin(),C.size());
+			assert ( CIS.get() < 0 );
+			assert ( strncmp ( text2.c_str(), C.begin(), C.size() ) == 0 );
+		}
+		
+		remove(fn.c_str());
+	}
+	
+	// test putback buffer in PosixFdInputStream
+	{
+		std::string const fn = "configure";
+		uint64_t const fs = libmaus::util::GetFileSize::getFileSize(fn);
+		libmaus::autoarray::AutoArray<char> A(fs,false);
+		
+		{
+			libmaus::aio::CheckedInputStream CIS(fn);
+			CIS.read(A.begin(),fs);
+		}
+		
+		uint64_t const putbacksize = 2048;
+		
+		if ( fs >= putbacksize )
+		{
+			libmaus::aio::PosixFdInputStream PFIS(fn,64*1024,putbacksize);
+			
+			for ( uint64_t z = 0; z < (fs-putbacksize+1); ++z )
+			{
+				for ( uint64_t i = 0 ; i < putbacksize; ++i )
+				{
+					int const c = PFIS.get();
+					assert ( c >= 0 );
+					assert ( c == A[z+i] );
+				}
+				
+				PFIS.clear();
+				
+				for ( int64_t i = putbacksize-1; i >= 1; --i )
+					PFIS.putback(A[z+i]);
+			}
+		}
+	}
+
+	testPosixFdInput();
+	
 	if ( argc < 3 )
 	{
 		std::cerr << "usage: " << argv[0] << " <in0> <in1> ... <out>" << std::endl;
 		return EXIT_FAILURE;
 	}
-
+	
 	try
 	{
 		::libmaus::timing::RealTimeClock rtc;
@@ -70,6 +217,8 @@ int main(int argc, char * argv[])
 			<< (copied/(1024.0*1024.0))/rtc.getElapsedSeconds()
 			<< "MB/s"
 			<< std::endl;
+			
+		testPosixFdInput();
 	}
 	catch(std::exception const & ex)
 	{

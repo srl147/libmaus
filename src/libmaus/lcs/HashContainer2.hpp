@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HASHCONTAINER2_HPP)
 #define HASHCONTAINER2_HPP
@@ -133,6 +133,7 @@ namespace libmaus
 			//
 			HashContainer2(unsigned int const rk, unsigned int const rm)
 			: k(rk), hashbits(k<<1), hashlen(1u<<hashbits), hashmask(hashlen-1), forw(k),
+			  trace(),
 			  m(rm), mp(m-k+1), 
 			  O(::libmaus::math::ilog(2*m))
 			{}
@@ -500,7 +501,7 @@ namespace libmaus
 									#endif
 									
 									::libmaus::lcs::BandedEditDistance lcsobj(alignlena,alignlenb,indellen);
-									::libmaus::lcs::EditDistanceResult R = 
+									/* ::libmaus::lcs::EditDistanceResult R = */
 										lcsobj.process(ref+alignposa,pattern+alignposb,alignlena,alignlenb,1,1);
 
 									#if defined(HASHSPDEBUG)
@@ -519,7 +520,7 @@ namespace libmaus
 									#endif
 									
 									::libmaus::lcs::GenericEditDistance lcsobj(alignlena,alignlenb,indellen);
-									::libmaus::lcs::EditDistanceResult R = 
+									/* ::libmaus::lcs::EditDistanceResult R = */
 										lcsobj.process(ref+alignposa,pattern+alignposb,alignlena,alignlenb,1,1);
 
 									#if defined(HASHSPDEBUG)
@@ -562,10 +563,10 @@ namespace libmaus
 							std::cerr << std::string(pattern+alignposb,pattern+alignposb+alignlenb) << std::endl;
 							#endif
 							
-							typedef typename ::std::iterator_traits<iterator>::value_type char_type;
-							typedef typename ::std::iterator_traits<iterator>::reference char_reference_type;
-							typedef typename ::std::iterator_traits<iterator>::pointer char_pointer_type;
-							typedef typename ::std::iterator_traits<iterator>::difference_type char_difference_type;
+							// typedef typename ::std::iterator_traits<iterator>::value_type char_type;
+							// typedef typename ::std::iterator_traits<iterator>::reference char_reference_type;
+							// typedef typename ::std::iterator_traits<iterator>::pointer char_pointer_type;
+							// typedef typename ::std::iterator_traits<iterator>::difference_type char_difference_type;
 							typedef ::std::reverse_iterator<iterator> reverse_iterator;
 							
 							iterator refstart = ref+alignposa;
@@ -589,7 +590,7 @@ namespace libmaus
 								#endif
 								
 								::libmaus::lcs::BandedEditDistance lcsobj(alignlenb,alignlena,indellen);
-								::libmaus::lcs::EditDistanceResult R = 
+								/* ::libmaus::lcs::EditDistanceResult R = */
 									lcsobj.process(revpatstart,revrefstart,alignlenb,alignlena,0,0);
 
 								lcsobj.removeFrontInserts();
@@ -607,7 +608,7 @@ namespace libmaus
 								#endif
 								
 								::libmaus::lcs::GenericEditDistance lcsobj(alignlenb,alignlena,indellen);
-								::libmaus::lcs::EditDistanceResult R = 
+								/* ::libmaus::lcs::EditDistanceResult R = */
 									lcsobj.process(revpatstart,revrefstart,alignlenb,alignlena,0,0);
 
 								lcsobj.removeFrontInserts();
@@ -706,7 +707,7 @@ namespace libmaus
 											#endif
 											
 											::libmaus::lcs::BandedEditDistance lcsobj(alignlena,alignlenb,indellen);
-											::libmaus::lcs::EditDistanceResult R = 
+											/* ::libmaus::lcs::EditDistanceResult R = */
 												lcsobj.process(ref+alignposa,pattern+alignposb,alignlena,alignlenb,1,1);
 
 											#if defined(HASHSPDEBUG)
@@ -725,7 +726,7 @@ namespace libmaus
 											#endif
 											
 											::libmaus::lcs::GenericEditDistance lcsobj(alignlena,alignlenb,indellen);
-											::libmaus::lcs::EditDistanceResult R = 
+											/* ::libmaus::lcs::EditDistanceResult R = */
 												lcsobj.process(ref+alignposa,pattern+alignposb,alignlena,alignlenb,1,1);
 
 											#if defined(HASHSPDEBUG)

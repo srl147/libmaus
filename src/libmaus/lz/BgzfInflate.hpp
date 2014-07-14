@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,154 +15,179 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_LZ_BGZFINFLATE_HPP)
 #define LIBMAUS_LZ_BGZFINFLATE_HPP
 
-#include <zlib.h>
-#include <libmaus/autoarray/AutoArray.hpp>
+#include <libmaus/lz/BgzfInflateBase.hpp>
+#include <libmaus/lz/BgzfInflateInfo.hpp>
+#include <libmaus/lz/BgzfVirtualOffset.hpp>
+#include <ostream>
 
 namespace libmaus
 {
 	namespace lz
 	{
 		template<typename _stream_type>
-		struct BgzfInflate
+		struct BgzfInflate : public BgzfInflateBase
 		{
 			typedef _stream_type stream_type;
-			static unsigned int const maxblocksize = 64*1024;
+			typedef BgzfInflate<stream_type> this_type;
+			typedef typename libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef typename libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
 
 			private:
-			static unsigned int const headersize = 18;
-			
-			z_stream strm;
-			::libmaus::autoarray::AutoArray<uint8_t,::libmaus::autoarray::alloc_type_memalign_cacheline> header;
-			::libmaus::autoarray::AutoArray<uint8_t,::libmaus::autoarray::alloc_type_memalign_cacheline> block;
 			stream_type & stream;
 			uint64_t gcnt;
+			std::ostream * ostr;
 
-			void init()
-			{
-				memset(&strm,0,sizeof(z_stream));
-						
-				strm.zalloc = Z_NULL;
-				strm.zfree = Z_NULL;
-				strm.opaque = Z_NULL;
-				strm.avail_in = 0;
-				strm.next_in = Z_NULL;
-						
-				int const ret = inflateInit2(&strm,-15);
-							
-				if (ret != Z_OK)
-				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::init() failed in inflateInit2";
-					se.finish();
-					throw se;
-				}
+			bool const haveoffsets;
+			libmaus::lz::BgzfVirtualOffset const startoffset;
+			libmaus::lz::BgzfVirtualOffset const endoffset;
 			
-			}
+			uint64_t compressedread;
+			
+			bool terminated;
 
 			public:	
-			BgzfInflate(stream_type & rstream)
-			: header(headersize,false), block(maxblocksize,false), stream(rstream), gcnt(0)
+			BgzfInflate(stream_type & rstream) 
+			: stream(rstream), gcnt(0), ostr(0), 
+			  haveoffsets(false), startoffset(0), endoffset(0), compressedread(0), terminated(false) {}
+			BgzfInflate(
+				stream_type & rstream, 
+				libmaus::lz::BgzfVirtualOffset const rstartoffset,
+				libmaus::lz::BgzfVirtualOffset const rendoffset
+			) 
+			: 
+				stream(rstream),
+				gcnt(0), ostr(0), 
+				haveoffsets(true), startoffset(rstartoffset), endoffset(rendoffset), 
+				compressedread(0), terminated(false) 
 			{
-				init();
+				stream.clear();
+				stream.seekg(startoffset.getBlockOffset(), std::ios::beg);
+				stream.clear();
 			}
-			~BgzfInflate()
+			BgzfInflate(stream_type & rstream, std::ostream & rostr) 
+			: stream(rstream), gcnt(0), ostr(&rostr), 
+			  haveoffsets(false), startoffset(0), endoffset(0), compressedread(0), terminated(false) {}
+
+
+			BgzfInflateInfo readAndInfo(char * const decomp, uint64_t const n)
 			{
-				inflateEnd(&strm);
-			}
-			
-			uint64_t read(char const * const decomp, uint64_t const n)
-			{
+				/* check if buffer given is large enough */	
+				if ( n < getBgzfMaxBlockSize() )
+				{
+					::libmaus::exception::LibMausException se;
+					se.getStream() << "BgzfInflate::decompressBlock(): provided buffer is too small: " << n << " < " << getBgzfMaxBlockSize();
+					se.finish();
+					throw se;				
+				}
+				
+				/* reset gcnt */
 				gcnt = 0;
-				stream.read(reinterpret_cast<char *>(header.begin()),headersize);
-				
-				if ( stream.gcount() == 0 )
+
+				/* return eof if terminate flag is set (we reached the end of the given interval) */
+				if ( terminated )
+					return BgzfInflateInfo(0,0,true);
+
+				/* first block flag if we are processing an interval on the file */
+				bool const firstblock = haveoffsets && (compressedread == 0);	
+				/* last block flag if we are processing an interval on the file	*/
+				bool const lastblock = haveoffsets && (compressedread == endoffset.getBlockOffset()-startoffset.getBlockOffset());
+			
+				/* read block */
+				std::pair<uint64_t,uint64_t> const blockinfo = readBlock(stream);
+
+				/* copy compressed block if ostr is not null */
+				if ( ostr )
 				{
-					std::cerr << "gcount is 0" << std::endl;
-					return 0;
-				}
-				
-				if ( header[0] != 31 || header[1] != 139 || header[2] != 8 || header[3] != 4 ||
-					header[10] != 6 || header[11] != 0 ||
-					header[12] != 66 || header[13] != 67 || header[14] != 2 || header[15] != 0
-				)
-				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): invalid header data";
-					se.finish();
-					throw se;			
-				}
-				
-				uint64_t const cblocksize = (static_cast<uint32_t>(header[16]) | (static_cast<uint32_t>(header[17]) << 8)) + 1;
-				
-				if ( cblocksize < 18 + 8 )
-				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): invalid header data";
-					se.finish();
-					throw se;					
-				}
-				
-				// size of compressed data
-				uint64_t const payloadsize = cblocksize - (18 + 8);
-				// read block
-				stream.read(reinterpret_cast<char *>(block.begin()),payloadsize + 8);
-				
-				if ( stream.gcount() != static_cast<int64_t>(payloadsize + 8) )
-				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): unexpected eof";
-					se.finish();
-					throw se;							
-				}
-				
-				uint32_t const uncompdatasize = 
-					(static_cast<uint32_t>(block[payloadsize+4]) << 0)
-					|
-					(static_cast<uint32_t>(block[payloadsize+5]) << 8)
-					|
-					(static_cast<uint32_t>(block[payloadsize+6]) << 16)
-					|
-					(static_cast<uint32_t>(block[payloadsize+7]) << 24);
+					ostr->write(reinterpret_cast<char const *>(header.begin()),getBgzfHeaderSize());
+					ostr->write(reinterpret_cast<char const *>(block.begin()),blockinfo.first + getBgzfFooterSize());
 					
-				if ( uncompdatasize > n )
-				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): uncompressed size is too large";
-					se.finish();
-					throw se;									
-				
+					if ( ! (*ostr) )
+					{
+						libmaus::exception::LibMausException ex;
+						ex.getStream() << "BgzfInflate::readAndInfo(): failed to write compressed input to copy stream." << std::endl;
+						ex.finish();
+						throw ex;
+					}
 				}
 
-				if ( inflateReset(&strm) != Z_OK )
+				/* check for empty block and flush copy stream if necessary */
+				if ( (! blockinfo.second) && ostr )
 				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): inflateReset failed";
-					se.finish();
-					throw se;									
+					ostr->flush();
+
+					/* check for I/O failure */
+					if ( ! (*ostr) )
+					{
+						libmaus::exception::LibMausException ex;
+						ex.getStream() << "BgzfInflate::readAndInfo(): failed to flush copy stream." << std::endl;
+						ex.finish();
+						throw ex;
+					}
 				}
-				
-				strm.avail_in = payloadsize;
-				strm.next_in = (block.begin());
-				strm.avail_out = uncompdatasize;
-				strm.next_out = (Bytef *)decomp;
-				
-				if ( (inflate(&strm,Z_FINISH) != Z_STREAM_END) || (strm.avail_out != 0) || (strm.avail_in != 0) )
+
+				/* decompress block */
+				gcnt = decompressBlock(decomp,blockinfo);
+
+				/* if this is the last block we will read, then set the terminate flag
+				  and cut off */
+				if ( lastblock )
 				{
-					::libmaus::exception::LibMausException se;
-					se.getStream() << "BgzfInflate::decompressBlock(): inflate failed";
-					se.finish();
-					throw se;												
+					gcnt = std::min(gcnt,endoffset.getSubOffset());
+					terminated = true;
 				}
+				/* if this is the first block then move data into place as required */
+				if ( firstblock )
+				{
+					uint64_t const soff = startoffset.getSubOffset();
+					if ( soff )
+					{
+						memmove(decomp,decomp+soff,gcnt-soff);
+						gcnt -= soff;
+					}
+				}
+
+				/* increase number of compressed bytes we have read by this block */
+				compressedread += getBgzfHeaderSize() + blockinfo.first + getBgzfFooterSize();
 				
-				gcnt = uncompdatasize;
-				
-				return gcnt;
+				return BgzfInflateInfo(
+					blockinfo.first+getBgzfHeaderSize()+getBgzfFooterSize(),
+					gcnt,
+					gcnt ? false : (stream.peek() < 0)
+				);
 			}
-			
+
+			/**
+			 * read a BGZF block
+			 * 
+			 * @param decomp space for decompressed data
+			 * @param n number of bytes availabel in decomp, must be at least the BGZF block size (64k)
+			 * @return (number of compressed bytes read, number of uncompressed bytes returned)
+			 **/
+			std::pair<uint64_t,uint64_t> readPlusInfo(char * const decomp, uint64_t const n)
+			{
+				BgzfInflateInfo const info = readAndInfo(decomp,n);				
+				return std::pair<uint64_t,uint64_t>(info.compressed,info.uncompressed);
+			}
+
+			/**
+			 * read a bgzf block
+			 *
+			 * @param decomp space for decompressed data
+			 * @param n number of bytes availabel in decomp, must be at least the BGZF block size (64k)
+			 * @return number of bytes in block
+			 **/
+			uint64_t read(char * const decomp, uint64_t const n)
+			{			
+				return readAndInfo(decomp,n).uncompressed;
+			}
+
+			/**
+			 * @return number of uncompressed bytes returned by last read call
+			 **/			
 			uint64_t gcount() const
 			{
 				return gcnt;

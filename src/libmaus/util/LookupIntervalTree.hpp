@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_UTIL_LOOKUPINTERVALTREE_HPP)
 #define LIBMAUS_UTIL_LOOKUPINTERVALTREE_HPP
 
@@ -43,6 +43,23 @@ namespace libmaus
 				unsigned int const rrangebits,
 				unsigned int const rsublookupbits
 			);
+
+			LookupIntervalTree(std::istream & in)
+			: H(in), I(H,0,H.size()),
+			  rangebits(libmaus::util::NumberSerialisation::deserialiseNumber(in)),
+			  sublookupbits(libmaus::util::NumberSerialisation::deserialiseNumber(in)),
+			  L(createLookup()), lookupshift ( rangebits - sublookupbits )
+			{
+			
+			}
+			
+			LookupIntervalTree(LookupIntervalTree const & o)
+			: H(o.H.clone()), I(H,0,H.size()),
+			  rangebits(o.rangebits), sublookupbits(o.sublookupbits),
+			  L(createLookup()), lookupshift ( rangebits - sublookupbits )
+			{
+			
+			}
 			
 			uint64_t find(uint64_t const v) const
 			{
@@ -52,6 +69,20 @@ namespace libmaus
 			}
 			
 			void test(bool setupRandom = true) const;
+			
+			void serialise(std::ostream & out) const
+			{
+				H.serialize(out);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,rangebits);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,sublookupbits);
+			}
+			
+			std::string serialise() const
+			{
+				std::ostringstream out;
+				serialise(out);
+				return out.str();
+			}
 		};
 	}
 }

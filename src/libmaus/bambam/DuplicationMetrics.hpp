@@ -1,41 +1,64 @@
-/**
-    libmaus
-    Copyright (C) 2009-2013 German Tischler
-    Copyright (C) 2011-2013 Genome Research Limited
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2009 The Broad Institute
+ * Copyright (c) 2013 German Tischler
+ * Copyright (c) 2013 Genome Research Limited
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #if ! defined(LIBMAUS_BAMBAM_DUPLICATIONMETRICS_HPP)
 #define LIBMAUS_BAMBAM_DUPLICATIONMETRICS_HPP
 
 #include <libmaus/types/types.hpp>
+#include <libmaus/exception/LibMausException.hpp>
+#include <libmaus/util/NumberSerialisation.hpp>
 #include <ostream>
 #include <cmath>
+#include <map>
 
 namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * duplication metrics class
+		 **/
 		struct DuplicationMetrics
 		{
+			//! number of unmapped reads
 			uint64_t unmapped;
+			//! number of unpaired reads
 			uint64_t unpaired;
+			//! number of examined pairs
 			uint64_t readpairsexamined;
+			//! number of unpaired duplicates
 			uint64_t unpairedreadduplicates;
+			//! number of paired duplicates
 			uint64_t readpairduplicates;
+			//! number of optical duplicates
 			uint64_t opticalduplicates;
 			
+			
+			/**
+			 * constructor
+			 **/
 			DuplicationMetrics()
 			:
 				unmapped(0),
@@ -46,6 +69,16 @@ namespace libmaus
 				opticalduplicates(0)
 			{
 				
+			}
+			
+			/**
+			 * constructor from stream
+			 *
+			 * @param istr input stream
+			 **/
+			DuplicationMetrics(std::istream & in)
+			{
+				deserialise(in);
 			}
 
 			/**
@@ -60,6 +93,10 @@ namespace libmaus
 			 *     X = number of distinct molecules in library
 			 *     N = number of read pairs
 			 *     C = number of distinct fragments observed in read pairs
+			 *
+			 * @param readPairs number of read pairs
+			 * @param uniqueReadPairs number of unique read pairs (total minus duplicates)
+			 * @return estimated library size
 			 */
 			static int64_t estimateLibrarySize(int64_t const readPairs, int64_t const uniqueReadPairs) 
 			{
@@ -80,7 +117,20 @@ namespace libmaus
 						throw se;
 					}
 
-					while( f(M*c, c, n) >= 0 ) M *= 10.0;
+					uint64_t po = 0;
+					uint64_t const polimit = 16*1024;
+					while( f(M*c, c, n) >= 0 && po < polimit )
+					{
+						M *= 10.0;
+						po += 1;
+					}
+					if ( po == polimit )
+					{
+						::libmaus::exception::LibMausException se;
+						se.getStream() << "[E] Detected (most likely) non terminating while loop" << std::endl;
+						se.finish();
+						throw se;					
+					}
 
 					for ( int i=0; i < 40; ++i ) 
 					{
@@ -99,7 +149,15 @@ namespace libmaus
 				}
 			}
 
-			/** Method that is used in the computation of estimated library size. */
+			/**
+			 * function that is used in the computation of the estimated library size;
+			 * yields c/x - 1 + e^(-n/x)
+			 *
+			 * @param x
+			 * @param c
+			 * @param n
+			 * @return c/x - 1 + e^(-n/x)
+			 **/
 			static double f(double const x, double const c, double const n) 
 			{
 				return c/x - 1 + ::std::exp(-n/x);
@@ -121,15 +179,25 @@ namespace libmaus
 			 	return estimatedLibrarySize * ( 1 - ::std::exp(-(x*pairs)/estimatedLibrarySize) ) / uniquePairs;
 			}
 
-			static std::ostream & printFormatHeader(std::ostream & out)
+			/**
+			 * print header for duplication metrics stats
+			 *
+			 * @param CL command line
+			 * @param out output stream
+			 * @return output stream
+			 **/
+                        static std::ostream & printFormatHeader(std::string const & CL, std::ostream & out)
 			{
-				out << "LIBRARY\tUNPAIRED_READS_EXAMINED\tREAD_PAIRS_EXAMINED\tUNMAPPED_READS\tUNPAIRED_READ_DUPLICATES\tREAD_PAIR_DUPLICATES\tREAD_PAIR_OPTICAL_DUPLICATES\tPERCENT_DUPLICATION\tESTIMATED_LIBRARY_SIZE\n";
+                                out << "# " << CL << std::endl << std::endl << "##METRICS" << std::endl;
+                                out << "LIBRARY\tUNPAIRED_READS_EXAMINED\tREAD_PAIRS_EXAMINED\tUNMAPPED_READS\tUNPAIRED_READ_DUPLICATES\tREAD_PAIR_DUPLICATES\tREAD_PAIR_OPTICAL_DUPLICATES\tPERCENT_DUPLICATION\tESTIMATED_LIBRARY_SIZE\n";
 				return out;
 			}
 		
 			/**
 			 * Calculates a histogram using the estimateRoi method to estimate the effective yield
 			 * doing x sequencing for x=1..10.
+			 *
+			 * @return ROI histogram
 			 */
 			std::map<unsigned int,double> calculateRoiHistogram()  const
 			{
@@ -137,7 +205,10 @@ namespace libmaus
 				
 				try
 				{
-					int64_t const ESTIMATED_LIBRARY_SIZE = estimateLibrarySize(readpairsexamined - opticalduplicates, readpairsexamined - readpairduplicates);
+					int64_t const ESTIMATED_LIBRARY_SIZE = estimateLibrarySize(
+						static_cast<int64_t>(readpairsexamined) - static_cast<int64_t>(opticalduplicates), 
+						static_cast<int64_t>(readpairsexamined) - static_cast<int64_t>(readpairduplicates)
+					);
 					
 					if ( ESTIMATED_LIBRARY_SIZE < 0 )
 						return H;
@@ -155,6 +226,12 @@ namespace libmaus
 				}
 			}
 			
+			/**
+			 * print histogram
+			 *
+			 * @param out output stream
+			 * @return out
+			 **/
 			std::ostream & printHistogram(std::ostream & out) const
 			{
 				std::map<unsigned int,double> const H = calculateRoiHistogram();
@@ -166,10 +243,20 @@ namespace libmaus
 				return out;
 			}
 
+			/**
+			 * print duplication metrics
+			 *
+			 * @param out output stream
+			 * @param libraryName name of seq library
+			 * @return output stream
+			 **/
 			std::ostream & format(std::ostream & out, std::string const libraryName) const
 			{
 				int64_t const ESTIMATED_LIBRARY_SIZE = estimateLibrarySize(readpairsexamined - opticalduplicates, readpairsexamined - readpairduplicates);                           
-				double const PERCENT_DUPLICATION = (unpairedreadduplicates + 2*readpairduplicates) / static_cast<double> (unpaired + readpairsexamined*2);
+				double const PERCENT_DUPLICATION = 
+					(unpaired + readpairsexamined*2) ?
+					((unpairedreadduplicates + 2*readpairduplicates) / 
+					static_cast<double> (unpaired + readpairsexamined*2)) : 0;
                                                                           
 				out 
 					<< libraryName << "\t"
@@ -183,19 +270,46 @@ namespace libmaus
 					<< ESTIMATED_LIBRARY_SIZE << "\n";
 				return out;
 			}
-		};
 
-		inline std::ostream & operator<<(std::ostream & out, DuplicationMetrics const & M)
-		{
-			out << "unmapped\t" << M.unmapped << std::endl;
-			out << "unpaired\t" << M.unpaired << std::endl;
-			out << "readpairsexamined\t" << M.readpairsexamined << std::endl;
-			out << "unpairedreadduplicates\t" << M.unpairedreadduplicates << std::endl;
-			out << "readpairduplicates\t" << M.readpairduplicates << std::endl;
-			out << "opticalduplicates\t" << M.opticalduplicates << std::endl;
-			// out << "unmapped\t" << M.unmapped << std::endl;
-			return out;
-		}
+			/**
+			 * serialise to stream
+			 *
+			 * @param ostr output stream
+			 **/
+			void serialise(std::ostream & out) const
+			{
+				libmaus::util::NumberSerialisation::serialiseNumber(out,unmapped);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,unpaired);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,readpairsexamined);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,unpairedreadduplicates);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,readpairduplicates);
+				libmaus::util::NumberSerialisation::serialiseNumber(out,opticalduplicates);
+			}
+			
+			/**
+			 * read object from stream
+			 *
+			 * @param in inputstream
+			 **/
+			void deserialise(std::istream & in)
+			{
+				unmapped = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+				unpaired = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+				readpairsexamined = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+				unpairedreadduplicates = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+				readpairduplicates = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+				opticalduplicates = libmaus::util::NumberSerialisation::deserialiseNumber(in);
+			}
+		};
 	}
 }
+
+/**
+ * print DuplicationMetrics object on output stream out
+ *
+ * @param out output stream
+ * @param M duplication metrics object
+ * @return output stream
+ **/
+std::ostream & operator<<(std::ostream & out, libmaus::bambam::DuplicationMetrics const & M);
 #endif

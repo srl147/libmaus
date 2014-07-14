@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,13 +15,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(ERANK222BAPPEND_HPP)
 #define ERANK222BAPPEND_HPP
 
-#include <libmaus/bitio/BitWriter.hpp>
 #include <libmaus/rank/ERankBase.hpp>
+#include <libmaus/rank/ERank222BBase.hpp>
 #include <libmaus/autoarray/AutoArray.hpp>
 #include <libmaus/util/unique_ptr.hpp>
 #include <cassert>
@@ -38,53 +38,30 @@ namespace libmaus
 		 * population count function. if the machine instruction set
 		 * does not provide a 64 bit popcount function, these calls
 		 * are simulated by using a precomputed 16 bit lookup table.
+		 * This class starts with an empty bit vector of predefined
+		 * maximal length. Bits can be appended up to the predefined
+		 * size.
 		 **/
-		struct ERank222BAppend : public ERankBase
+		struct ERank222BAppend : public ERankBase, public ERank222BBase
 		{
 			public:
-			typedef ::libmaus::bitio::BitWriter8 writer_type;
-
 			typedef ERank222BAppend this_type;
 			typedef ::libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
 
-		
 			private:
-			
-			// super block size 2^16 bits
-			static unsigned int const sbbitwidth = 16;
-			// mini block size 2^6 = 64 bits
-			static unsigned int const mbbitwidth = 6;
-			
-			// derived numbers
-			
-			// actual block sizes
-			static uint64_t const sbsize = 1u << sbbitwidth;
-			static uint64_t const mbsize = 1u << mbbitwidth;
-			
-			// miniblocks per superblock
-			static uint64_t const mps = ERANK2DIVUP(sbsize,mbsize);
-			// superblock mask
-			static uint64_t const sbmask = (1u<<sbbitwidth)-1;
-			// miniblock mask
-			static uint64_t const mbmask = (1u<<mbbitwidth)-1;
-			// superblock/miniblock mask
-			static uint64_t const sbmbmask = (1ull << (sbbitwidth-mbbitwidth))-1;
-			// superblock/miniblock shift
-			static unsigned int const sbmbshift = sbbitwidth-mbbitwidth;
-
-			uint64_t const * const UUUUUUUU;
+			uint64_t * const UUUUUUUU;
 			uint64_t const n;
 			uint64_t const numsuper;
 			uint64_t const nummini;
+			uint64_t activesuper;
+			uint64_t activemini;
+			uint64_t * activepointer;
+			uint64_t activemask;
 			uint64_t nc;
+			uint64_t nr;
 			
 			::libmaus::autoarray::AutoArray<uint64_t> S; // n / 2^16 * 64 bits = n / 2^10 = n/1024 bits
 			::libmaus::autoarray::AutoArray<unsigned short> M; // n / 2^16 * 2^16 / 64 * 16 = n/4 bits
-
-			static inline uint64_t divUp(uint64_t a, uint64_t b)
-			{
-				return ERANK2DIVUP(a,b);
-			}
 
 			/**
 			 * return superblock containing i th 1 bit,
@@ -93,7 +70,7 @@ namespace libmaus
 			uint64_t selectSuper(uint64_t const ii) const
 			{
 				// search largest superblock index s such that ii < S[s]
-				uint64_t left = 0, right = numsuper;
+				uint64_t left = 0, right = activesuper;
 
 				while ( right-left > 1 )
 				{
@@ -118,7 +95,7 @@ namespace libmaus
 			{
 				uint64_t const ii = iii - S[s];
 				uint64_t left = (s << sbbitwidth) >>  mbbitwidth;
-				uint64_t right = ::std::min( nummini, ((s+1) << sbbitwidth) >>  mbbitwidth);
+				uint64_t right = ::std::min( activemini, ((s+1) << sbbitwidth) >>  mbbitwidth);
 			
 				while ( right-left > 1 )
 				{
@@ -142,87 +119,60 @@ namespace libmaus
 			 * @param rUUUUUUUU bit vector
 			 * @param rn number of bits in vector (has to be a multiple of 64)
 			 **/
-			ERank222BAppend(uint64_t const * const rUUUUUUUU, uint64_t const rn) 
+			ERank222BAppend(uint64_t * const rUUUUUUUU, uint64_t const rn) 
 			: UUUUUUUU(rUUUUUUUU), n(rn),
-			  numsuper((n + (sbsize-1)) >> sbbitwidth), nummini((n + (mbsize-1)) >> mbbitwidth),
-			  nc(0),
-			  S( divUp(n,sbsize) , false ), M( divUp(n,mbsize), false)
+			  numsuper( divUp(n,sbsize) ), nummini( divUp(n,mbsize) ),
+			  activesuper(0), activemini(0), activepointer(UUUUUUUU-1), activemask(0),
+			  nc(0), nr(0),
+			  S( numsuper , false ), M( nummini, false)
 			{
-				if ( n & mbmask )
-					throw ::std::runtime_error("libmaus::rank::ERank222BAppend: n is not multiple of miniblock size 64.");
-				if ( ! n )
-					return;
-			
-				S[0] = 0;
-				M[0] = 0;
-				
-				#if 0
-				// miniblock popcnt
-				uint64_t c = 0;
-				// superblock popcnt
-				uint64_t sc = 0;
-				// superblock counter
-				uint64_t s = 0;
-
-				for ( uint64_t mi = 0; mi != nummini; ++mi )
-				{
-					uint64_t b = UUUUUUUU[mi];
-
-					if ( (mi & sbmbmask) == 0 )
-					{
-						assert ( s == (mi >> sbmbshift) );
-						sc = c;
-						S[ s++ ] = sc;
-					}
-
-					M[ mi ] = c - sc;
-					
-					assert( sc + M[mi] == c );
-				
-					c += popcount8(b);
-				}
-
-				// ::std::cerr << "Construction done." << ::std::endl;
-				#endif
 			}
 			
-			void append(uint64_t const na)
+			void appendOneRun(uint64_t j)
 			{
-				uint64_t const milow = nc ? ((nc >> mbbitwidth)-1) : 0;
-				uint64_t const mihigh = (nc+na+(mbsize-1)) >> mbbitwidth;
-				//uint64_t const mihigh = (nc+na+(mbsize-1)) >> mbbitwidth;
-				
-				uint64_t c = S [ (milow>>sbmbshift) ] + M[milow];
-				uint64_t sc = S [ (milow>>sbmbshift) ];
+				while ( j-- )
+					appendBit(true);
+			}
 
-				#if 0
-				::std::cerr << "Appending " << na << " bits at position " << nc 
-					<< " milow=" << milow << " mihigh=" << mihigh 
-					<< " c=" << c
-					<< " sc=" << sc
-					<< ::std::endl;
-				#endif
-				
-				for ( uint64_t mi = milow; mi != mihigh; ++mi )
+			void appendZeroRun(uint64_t j)
+			{
+				while ( j-- )
+					appendBit(false);
+			}
+			
+			void appendBit(bool const b)
+			{
+				// start new word if activemask is null
+				if ( ! activemask )
 				{
-					uint64_t b = UUUUUUUU[mi];
-
-					if ( (mi & sbmbmask) == 0 )
-					{
-						sc = c;
-						S[ (mi >> sbmbshift) ] = sc;
-						// ::std::cerr << "Setting S[ " << (mi>>sbmbshift) << " ] = " << sc << ::std::endl;
-					}
-
-					M[ mi ] = c - sc;
-					
-					assert( sc + M[mi] == c );
-				
-					c += popcount8(b);
-
+					*(++activepointer) = 0;
+					activemask = (1ull<<63);
 				}
-				
-				nc += na;
+				// add bit if it is one
+				if ( b )
+					*activepointer |= activemask;
+				// shift active mask to next position
+				activemask >>= 1;
+				// update miniblock dictionary if necessary
+				if ( !(nc & mbmask) )
+				{
+					// update superblock dictionary if necessary
+					//if ( !(nc & sbmask) ) 
+					if ( ! (activemini & sbmbmask) )
+						S [ activesuper++ ] = nr;
+
+					M [ activemini++ ] = nr - S [ activesuper-1 ];
+				}
+				// update rank accu
+				if ( b )
+					++nr;
+				// update position
+				++nc;
+			}
+						
+			bool operator[](uint64_t const i) const
+			{
+				return ::libmaus::bitio::getBit(UUUUUUUU,i);
 			}
 			
 			/**
@@ -293,7 +243,7 @@ namespace libmaus
 						right = mid;
 				}
 				
-				return n;
+				return nc;
 			}
 			/**
 			 * Return the position of the ii'th 0 bit. This function is implemented using a 
@@ -303,7 +253,7 @@ namespace libmaus
 			{
 				uint64_t const i = ii+1;
 
-				uint64_t left = 0, right = n;
+				uint64_t left = 0, right = nc;
 				
 				while ( (right-left) )
 				{
@@ -325,7 +275,7 @@ namespace libmaus
 						right = mid;
 				}
 				
-				return n;		
+				return nc;		
 			}
 		};
 	}

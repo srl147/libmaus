@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BITIO_COMPACTARRAYWRITER_HPP)
 #define LIBMAUS_BITIO_COMPACTARRAYWRITER_HPP
 
@@ -49,11 +49,10 @@ namespace libmaus
 				SGO.put( (n*b+63)/64 );
 
 				::libmaus::aio::SynchronousGenericOutput<uint64_t>::iterator_type it(SGO);
-				FWBW = UNIQUE_PTR_MOVE(
-					::libmaus::bitio::FastWriteBitWriterBuffer64Sync::unique_ptr_type(
-						new ::libmaus::bitio::FastWriteBitWriterBuffer64Sync(it)
-					)
-				);	
+				::libmaus::bitio::FastWriteBitWriterBuffer64Sync::unique_ptr_type tFWBW(
+                                                new ::libmaus::bitio::FastWriteBitWriterBuffer64Sync(it)
+                                        );
+				FWBW = UNIQUE_PTR_MOVE(tFWBW);
 			}
 			
 			CompactArrayWriter(

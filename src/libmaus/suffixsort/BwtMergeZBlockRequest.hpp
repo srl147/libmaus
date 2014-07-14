@@ -1,5 +1,5 @@
 /**
-    suds
+    libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
 
@@ -29,8 +29,10 @@ namespace libmaus
 	{
 		struct BwtMergeZBlockRequest
 		{
+			private:
 			uint64_t zabspos;
 			
+			public:
 			BwtMergeZBlockRequest(uint64_t rzabspos = 0) : zabspos(rzabspos) {}
 			BwtMergeZBlockRequest(std::istream & in) : zabspos(::libmaus::util::NumberSerialisation::deserialiseNumber(in)) {}
 			
@@ -46,6 +48,11 @@ namespace libmaus
 				return ostr.str();
 			}
 			
+			uint64_t getZAbsPos() const
+			{
+				return zabspos;
+			}
+			
 			operator uint64_t() const
 			{
 				return zabspos;
@@ -54,3 +61,4 @@ namespace libmaus
 	}
 }
 #endif
+

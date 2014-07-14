@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(LIBMAUS_GAMMA_GAMMARLDECODER_HPP)
 #define LIBMAUS_GAMMA_GAMMARLDECODER_HPP
@@ -29,6 +29,7 @@
 #include <libmaus/huffman/IndexDecoderDataArray.hpp>
 #include <libmaus/huffman/IndexLoader.hpp>
 #include <libmaus/gamma/GammaDecoder.hpp>
+#include <libmaus/aio/SynchronousGenericInput.hpp>
 
 namespace libmaus
 {
@@ -79,7 +80,7 @@ namespace libmaus
 				return SGI.get();
 			}
 			
-			// get length of file in symbols
+			// get alphabet bits
 			static unsigned int getAlBits(std::string const & filename)
 			{
 				::libmaus::aio::CheckedInputStream CIS(filename);
@@ -88,6 +89,23 @@ namespace libmaus
 				);
 				SGI.get(); // file length
 				return SGI.get();
+			}
+
+			// get alphabet bits
+			static unsigned int getAlBits(std::vector<std::string> const & filenames)
+			{
+				if ( ! filenames.size() )
+					return 0;
+					
+				unsigned int const albits_0 = getAlBits(filenames[0]);
+				
+				for ( uint64_t i = 1; i < filenames.size(); ++i )
+				{
+					unsigned int const albits_i = getAlBits(filenames[i]);
+					assert ( albits_i == albits_0 );
+				}
+				
+				return albits_0;
 			}
 			
 			// get length of vector of files in symbols
@@ -108,11 +126,10 @@ namespace libmaus
 					albits = getAlBits(idda.data[fileptr].filename);
 
 					// open new input file stream
-					CIS = UNIQUE_PTR_MOVE(
-						::libmaus::aio::CheckedInputStream::unique_ptr_type(
-							new ::libmaus::aio::CheckedInputStream(idda.data[fileptr].filename)
-						)
-					);
+					::libmaus::aio::CheckedInputStream::unique_ptr_type tCIS(
+                                                        new ::libmaus::aio::CheckedInputStream(idda.data[fileptr].filename)
+                                                );
+					CIS = UNIQUE_PTR_MOVE(tCIS);
 					
 					// seek to position and check if we succeeded
 					if ( iecv )
@@ -120,19 +137,17 @@ namespace libmaus
 					else
 						CIS->seekg(idda.data[fileptr].getPos(blockptr),std::ios::beg);
 
-					SGI = UNIQUE_PTR_MOVE(
-						::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type(
-							new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*CIS,bufsize,
-								std::numeric_limits<uint64_t>::max() /* total words */,false /* checkmod */
-							)
-						)
-					);
+					::libmaus::aio::SynchronousGenericInput<uint64_t>::unique_ptr_type tSGI(
+                                                        new ::libmaus::aio::SynchronousGenericInput<uint64_t>(*CIS,bufsize,
+                                                                std::numeric_limits<uint64_t>::max() /* total words */,false /* checkmod */
+                                                        )
+                                                );
+					SGI = UNIQUE_PTR_MOVE(tSGI);
 					
-					GD = UNIQUE_PTR_MOVE(
-						::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >::unique_ptr_type(
-							new ::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >(*SGI)
-						)
-					);
+					::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >::unique_ptr_type tGD(
+                                                        new ::libmaus::gamma::GammaDecoder< ::libmaus::aio::SynchronousGenericInput<uint64_t> >(*SGI)
+                                                );
+					GD = UNIQUE_PTR_MOVE(tGD);
 
 					return true;
 				}
@@ -219,6 +234,11 @@ namespace libmaus
 				return std::pair<int64_t,uint64_t>(sym,freq);
 			}
 			
+			inline void putBack(std::pair<int64_t,uint64_t> const & P)
+			{
+				*(--pc) = P;
+			}
+			
 			inline int get()
 			{
 				return decode();
@@ -294,7 +314,7 @@ namespace libmaus
 				std::vector<std::string> const & rfilenames, uint64_t offset = 0, uint64_t const rbufsize = 64*1024
 			)
 			: 
-			  Pidda(UNIQUE_PTR_MOVE(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames))),
+			  Pidda(::libmaus::huffman::IndexDecoderDataArray::construct(rfilenames)),
 			  idda(*Pidda),
 			  iecv(0),
 			  pa(0), pc(0), pe(0),

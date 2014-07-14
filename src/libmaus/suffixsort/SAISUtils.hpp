@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 
 #if ! defined(SAISUTILS_HPP)
@@ -301,7 +301,7 @@ namespace libmaus
 		{
 			uint64_t const threads = 8;
 		
-			::libmaus::bitio::IndexedBitVector::unique_ptr_type pstype = UNIQUE_PTR_MOVE(computeSParallel(C,n,threads));
+			::libmaus::bitio::IndexedBitVector::unique_ptr_type pstype(computeSParallel(C,n,threads));
 			::libmaus::bitio::IndexedBitVector & stype = *pstype;
 
 			sToSastParallel(stype,threads);
@@ -552,7 +552,7 @@ namespace libmaus
 			// typedef ::libmaus::select::ESelect222B<true> select_type;
 			static unsigned int const selectstepbitslog = 7;
 			typedef ::libmaus::select::ESelectSimple<true,selectstepbitslog> select_type;
-			select_type::unique_ptr_type eselect;
+			typename select_type::unique_ptr_type eselect;
 			//
 			uint64_t const soffset;
 			// name dictionary
@@ -586,9 +586,12 @@ namespace libmaus
 			  K(numcol + numnoncol)
 			{
 				for ( uint64_t i = 0; i < S.size(); ++i )
-					S[i] = UNIQUE_PTR_MOVE(array_ptr_type(
-						new array_type( 1ull << (i*b) , numsubbits )
-						));
+				{
+					array_ptr_type Si(
+                                                new array_type( 1ull << (i*b) , numsubbits )
+                                                );
+					S[i] = UNIQUE_PTR_MOVE(Si);
+				}
 			}
 			
 			uint64_t byteSize() const
@@ -731,7 +734,7 @@ namespace libmaus
 			    stypecomp(C,stype),
 			    LB(uintbits+1)
 			{
-				typedef typename array_type::const_iterator compact_const_it;
+				// typedef typename array_type::const_iterator compact_const_it;
 				
 				uint64_t const maxhashmem = std::max ( static_cast<uint64_t>(((n*b+7)/8)/fraction) , static_cast<uint64_t>(1024) );
 				hashbits = 1;
@@ -749,9 +752,11 @@ namespace libmaus
 				// hash table
 				HH = ::libmaus::autoarray::AutoArray<hash_type> ( 1ull << hashbits );
 				// collision bit vector
-				ColBV = UNIQUE_PTR_MOVE(::libmaus::bitio::IndexedBitVector::unique_ptr_type(new ::libmaus::bitio::IndexedBitVector(HH.size()) ));
+				::libmaus::bitio::IndexedBitVector::unique_ptr_type tColBV(new ::libmaus::bitio::IndexedBitVector(HH.size()) );
+				ColBV = UNIQUE_PTR_MOVE(tColBV);
 				// non collision bit vector
-				NonColBV = UNIQUE_PTR_MOVE(::libmaus::bitio::IndexedBitVector::unique_ptr_type(new ::libmaus::bitio::IndexedBitVector( HH.size() ) ));
+				::libmaus::bitio::IndexedBitVector::unique_ptr_type tNonColBV(new ::libmaus::bitio::IndexedBitVector( HH.size() ) );
+				NonColBV = UNIQUE_PTR_MOVE(tNonColBV);
 				
 				if ( verbose )
 					std::cerr << "(bs="

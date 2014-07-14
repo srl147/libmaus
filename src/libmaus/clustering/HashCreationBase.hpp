@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(HASHCREATIONBASE_HPP)
 #define HASHCREATIONBASE_HPP
@@ -246,35 +246,35 @@ namespace libmaus
 					{
 						ShortArray<1> * S = reinterpret_cast< ShortArray<1> * >(ptr);
 						ShiftComparator< ShortArray<1> > comp(hashshift);
-						::std::__inplace_stable_sort(S,S+n,comp);
+						::std::stable_sort(S,S+n,comp);
 						break;
 					}
 					case 2:
 					{
 						ShortArray<2> * S = reinterpret_cast< ShortArray<2> * >(ptr);
 						ShiftComparator< ShortArray<2> > comp(hashshift);
-						::std::__inplace_stable_sort ( S, S + n,comp);
+						::std::stable_sort ( S, S + n,comp);
 						break;
 					}
 					case 3:
 					{
 						ShortArray<3> * S = reinterpret_cast< ShortArray<3> * >(ptr);
 						ShiftComparator< ShortArray<3> > comp(hashshift);
-						::std::__inplace_stable_sort ( S, S + n,comp);
+						::std::stable_sort ( S, S + n,comp);
 						break;
 					}
 					case 4:
 					{
 						ShortArray<4> * S = reinterpret_cast< ShortArray<4> * >(ptr);
 						ShiftComparator< ShortArray<4> > comp(hashshift);
-						::std::__inplace_stable_sort ( S, S + n,comp);
+						::std::stable_sort ( S, S + n,comp);
 						break;
 					}
 					case 5:
 					{
 						ShortArray<5> * S = reinterpret_cast< ShortArray<5> * >(ptr);
 						ShiftComparator< ShortArray<5> > comp(hashshift);
-						::std::__inplace_stable_sort ( S, S + n, comp);
+						::std::stable_sort ( S, S + n, comp);
 						break;
 					}
 					default:

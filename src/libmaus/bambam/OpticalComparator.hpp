@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 #if ! defined(LIBMAUS_BAMBAM_OPTICALCOMPARATOR_HPP)
 #define LIBMAUS_BAMBAM_OPTICALCOMPARATOR_HPP
 
@@ -25,8 +25,19 @@ namespace libmaus
 {
 	namespace bambam
 	{
+		/**
+		 * comparator class for optical read parameters
+		 **/
 		struct OpticalComparator
 		{
+			/**
+			 * compare optical parameter of objects A and B; this lexicographically involves the attributes
+			 * readGroup, tile, x and y
+			 *
+			 * @param A first read ends object
+			 * @param B second read ends object
+			 * @return A < B for optical parameters
+			 **/
 			bool operator()(::libmaus::bambam::ReadEnds const & A, ::libmaus::bambam::ReadEnds const & B)
 			{
 				if ( A.readGroup != B.readGroup )
@@ -37,6 +48,18 @@ namespace libmaus
 					return A.x < B.x;
 				else
 					return A.y < B.y;	
+			}
+			/**
+			 * compare optical parameter of objects A and B; this lexicographically involves the attributes
+			 * readGroup, tile, x and y
+			 *
+			 * @param A first read ends object
+			 * @param B second read ends object
+			 * @return A < B for optical parameters
+			 **/
+			bool operator()(::libmaus::bambam::ReadEnds const * A, ::libmaus::bambam::ReadEnds const * B)
+			{
+				return (*this)(*A,*B);
 			}
 		};
 	}

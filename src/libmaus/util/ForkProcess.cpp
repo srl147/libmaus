@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/util/ForkProcess.hpp>
 
@@ -59,7 +59,8 @@ void libmaus::util::ForkProcess::init(
 	
 	for ( uint64_t i = 0; i < args.size(); ++i )
 	{
-		wargv[i] = UNIQUE_PTR_MOVE(string_ptr_type(new string_type(args[i])));
+		string_ptr_type twargvi(new string_type(args[i]));
+		wargv[i] = UNIQUE_PTR_MOVE(twargvi);
 		aargv[i] = wargv[i]->A.get();
 	}
 	

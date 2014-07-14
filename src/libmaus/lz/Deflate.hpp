@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #if ! defined(DEFLATE_HPP)
 #define DEFLATE_HPP
@@ -98,7 +98,7 @@ namespace libmaus
 				std::string const & filename,
 				int level = Z_DEFAULT_COMPRESSION,
 				bool const addHeader = true
-			) : out_ptr ( UNIQUE_PTR_MOVE(out_file_ptr_type(new std::ofstream(filename.c_str(),std::ios::binary) )) ),
+			) : out_ptr ( out_file_ptr_type(new std::ofstream(filename.c_str(),std::ios::binary) ) ),
 			    out(*out_ptr)
 			{
 				if ( addHeader )
@@ -416,6 +416,10 @@ namespace libmaus
 		
 		struct BGZFOutputStream : public BGZFOutputStreamBuffer, public std::ostream
 		{	
+			typedef BGZFOutputStream this_type;
+			typedef libmaus::util::unique_ptr<this_type>::type unique_ptr_type;
+			typedef libmaus::util::shared_ptr<this_type>::type shared_ptr_type;
+		
 			BGZFOutputStream(std::ostream & out, uint64_t const rbuffersize = 64*1024, int const level = Z_DEFAULT_COMPRESSION)
 			: BGZFOutputStreamBuffer(out,rbuffersize,level), std::ostream(this)
 			{

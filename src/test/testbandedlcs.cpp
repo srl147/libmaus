@@ -1,4 +1,4 @@
-/**
+/*
     libmaus
     Copyright (C) 2009-2013 German Tischler
     Copyright (C) 2011-2013 Genome Research Limited
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-**/
+*/
 
 #include <libmaus/lcs/LCS.hpp>
 #include <libmaus/util/ArgInfo.hpp>
@@ -56,7 +56,7 @@ int main(int argc, char * argv[])
 			uint64_t const dif = (na>=nb) ? (na-nb) : (nb-na);
 
 			::libmaus::lcs::BandedEditDistance BED(na,nb,2*dif);
-			::libmaus::lcs::EditDistanceResult EDR = BED.process(pa.pattern,pb.pattern,na,nb);
+			/* ::libmaus::lcs::EditDistanceResult EDR = */ BED.process(pa.pattern,pb.pattern,na,nb);
 
 			BED.printAlignmentLines(std::cout,pa.spattern,pb.spattern,80);
 		}
