@@ -2,7 +2,10 @@ ACLOCAL_AMFLAGS=-I m4
 
 abs_builddir = @abs_builddir@
 
-lib_LTLIBRARIES = libmaus.la libmauslsf.la libmaus_kmlocal_mod.la libmaus_consensus_mod.la libmaus_scram_mod.la
+lib_LTLIBRARIES = libmaus.la libmauslsf.la 
+
+libmaus_modules_LTLIBRARIES = libmaus_kmlocal_mod.la libmaus_consensus_mod.la libmaus_scram_mod.la
+libmaus_modulesdir = $(libdir)/libmaus/$(PACKAGE_VERSION)
 
 libmaus_la_SOURCES = libmaus/StaticInitialization.cpp \
 	libmaus/autoarray/AutoArray.cpp \
@@ -118,13 +121,15 @@ libmaus_la_SOURCES = libmaus/StaticInitialization.cpp \
 	libmaus/bambam/BamHeader.cpp \
 	libmaus/bambam/GeneFlatFile.cpp \
 	libmaus/bambam/GeneFlatFileEntry.cpp \
-	libmaus/trie/SimpleTrie.cpp
+	libmaus/trie/SimpleTrie.cpp \
+	libmaus/network/GnuTLSInit.cpp \
+	libmaus/network/GnuTLSSocket.cpp
 
 noinst_HEADERS = libmaus/lz/lz4.h
 
-libmaus_la_CPPFLAGS = @LIBMAUSCPPFLAGS@ @SNAPPYCPPFLAGS@ @ZLIBCPPFLAGS@ @WARNCPPFLAGS@ @LIBCURLCPPFLAGS@ @OPENSSLCPPFLAGS@ @IGZIPCPPFLAGS@
-libmaus_la_LDFLAGS = @LIBMAUSLDFLAGS@ @SNAPPYLDFLAGS@ -version-info ${LIBRARY_VERSION} @LIBMAUSSTATIC@ @IGZIPLDFLAGS@
-libmaus_la_LIBADD = @DLLIB@ @SNAPPYLIBS@ @ZLIBLIBS@ @LIBCURLLIBS@ @OPENSSLLIBS@ @IGZIPLIBS@
+libmaus_la_CPPFLAGS = @LIBMAUSCPPFLAGS@ @SNAPPYCPPFLAGS@ @ZLIBCPPFLAGS@ @WARNCPPFLAGS@ @LIBCURLCPPFLAGS@ @OPENSSLCPPFLAGS@ @GNUTLSCPPFLAGS@ @IGZIPCPPFLAGS@
+libmaus_la_LDFLAGS = @LIBMAUSLDFLAGS@ @SNAPPYLDFLAGS@ -version-info ${LIBRARY_VERSION} @LIBMAUSSTATIC@ @IGZIPLDFLAGS@ @GNUTLSLDFLAGS@
+libmaus_la_LIBADD = @DLLIB@ @SNAPPYLIBS@ @ZLIBLIBS@ @LIBCURLLIBS@ @OPENSSLLIBS@ @IGZIPLIBS@ @GNUTLSLIBS@
 
 libmauslsf_la_LDFLAGS = @LSFLDFLAGS@ @LIBMAUSLDFLAGS@ -version-info ${LIBRARY_VERSION} @LIBMAUSSTATIC@
 libmauslsf_la_SOURCES = libmaus/lsf/LSFProcess.cpp
@@ -133,20 +138,20 @@ libmauslsf_la_LIBADD = libmaus.la ${LSFLIBS}
 
 libmaus_kmlocal_mod_la_CPPFLAGS = @KMLOCALCPPFLAGS@ @LIBMAUSCPPFLAGS@ ${AM_CPPFLAGS} @WARNCPPFLAGS@
 libmaus_kmlocal_mod_la_CXXFLAGS = @KMLOCALCXXFLAGS@ @LIBMAUSCXXFLAGS@ ${AM_CXXFLAGS} -fPIC
-libmaus_kmlocal_mod_la_LDFLAGS  = @KMLOCALLDFLAGS@  @LIBMAUSLDFLAGS@                 -module -avoid-version -shared -export-dynamic ${AM_LDFLAGS}
+libmaus_kmlocal_mod_la_LDFLAGS  = @KMLOCALLDFLAGS@  @LIBMAUSLDFLAGS@                 -module  -shared -export-dynamic ${AM_LDFLAGS} -avoid-version
 libmaus_kmlocal_mod_la_LIBADD   = @KMLOCALLIBS@     @LIBMAUSLIBS@
 libmaus_kmlocal_mod_la_SOURCES  = libmaus/quantisation/KMLocalInterface.cpp
 
 libmaus_consensus_mod_la_CPPFLAGS = @SEQANCPPFLAGS@                 @LIBMAUSCPPFLAGS@ ${AM_CPPFLAGS} @WARNCPPFLAGS@
 libmaus_consensus_mod_la_CXXFLAGS = @SEQANCXXFLAGS@                 @LIBMAUSCXXFLAGS@ ${AM_CXXFLAGS} -fPIC
-libmaus_consensus_mod_la_LDFLAGS  = @SEQANLDFLAGS@  @SEQANLIBS@     @LIBMAUSLDFLAGS@  @LIBMAUSLIBS@     -module -avoid-version -shared -export-dynamic ${AM_LDFLAGS}
+libmaus_consensus_mod_la_LDFLAGS  = @SEQANLDFLAGS@  @SEQANLIBS@     @LIBMAUSLDFLAGS@  @LIBMAUSLIBS@     -module  -shared -export-dynamic ${AM_LDFLAGS} -avoid-version
 libmaus_consensus_mod_la_LIBADD   = @SEQANLIBS@ @LIBMAUSLIBS@
 libmaus_consensus_mod_la_SOURCES  = libmaus/consensus/ConsensusBase.cpp libmaus/consensus/ScoringMatrix.cpp \
 	libmaus/fastx/Phred.cpp
 
 libmaus_scram_mod_la_CPPFLAGS = @IOLIBCPPFLAGS@ @LIBMAUSCPPFLAGS@ ${AM_CPPFLAGS} @WARNCPPFLAGS@
 libmaus_scram_mod_la_CXXFLAGS = @LIBMAUSCXXFLAGS@ ${AM_CXXFLAGS} -fPIC
-libmaus_scram_mod_la_LDFLAGS  = @IOLIBLDFLAGS@  @IOLIBLIBS@     @LIBMAUSLDFLAGS@  @LIBMAUSLIBS@     -module -avoid-version -shared -export-dynamic ${AM_LDFLAGS}
+libmaus_scram_mod_la_LDFLAGS  = @IOLIBLDFLAGS@  @IOLIBLIBS@     @LIBMAUSLDFLAGS@  @LIBMAUSLIBS@     -module  -shared -export-dynamic ${AM_LDFLAGS} -avoid-version
 libmaus_scram_mod_la_LIBADD   = @IOLIBLIBS@ @LIBMAUSLIBS@
 libmaus_scram_mod_la_SOURCES  = libmaus/bambam/Scram.c
 
@@ -635,7 +640,14 @@ libmausutil_include_HEADERS=\
 	libmaus/util/StringMapCompare.hpp \
 	libmaus/util/FreeList.hpp \
 	libmaus/util/ToUpperTable.hpp \
-	libmaus/util/BorderArray.hpp
+	libmaus/util/BorderArray.hpp \
+	libmaus/util/SimpleHashMapConstants.hpp \
+	libmaus/util/SimpleHashMapKeyPrint.hpp \
+	libmaus/util/GrowingFreeList.hpp \
+	libmaus/util/SimpleHashMapHashCompute.hpp \
+	libmaus/util/SimpleHashMapInsDel.hpp \
+	libmaus/util/SimpleHashMapNumberCast.hpp \
+	libmaus/util/SimpleHashSetInsDel.hpp
 
 libmausuint_includedir=$(includedir)/libmaus/uint
 libmausuint_include_HEADERS=\
@@ -825,7 +837,8 @@ libmausfastx_include_HEADERS=\
 	libmaus/fastx/FastABgzfDecoderBuffer.hpp \
 	libmaus/fastx/FastAIndexEntry.hpp \
 	libmaus/fastx/FastAIndex.hpp \
-	libmaus/fastx/FastAInfo.hpp
+	libmaus/fastx/FastAInfo.hpp \
+	libmaus/fastx/FastATwoBitTable.hpp
 
 libmaustiming_includedir=$(includedir)/libmaus/timing
 libmaustiming_include_HEADERS=\
@@ -879,8 +892,10 @@ libmausfm_include_HEADERS=\
 	libmaus/fm/MausFmToBwaConversion.hpp \
 	libmaus/fm/BidirectionalIndexInterval.hpp \
 	libmaus/fm/BidirectionalIndexIntervalSymbol.hpp \
-	libmaus/fm/DictionaryInfo.hpp  libmaus/fm/DictionaryInfoImpCompactHuffmanWaveletTree.hpp \
-	libmaus/fm/BidirectionalDnaIndexTemplate.hpp
+	libmaus/fm/DictionaryInfo.hpp \
+	libmaus/fm/DictionaryInfoImpCompactHuffmanWaveletTree.hpp \
+	libmaus/fm/BidirectionalDnaIndexTemplate.hpp \
+	libmaus/fm/KmerCache.hpp
 	
 libmauslcp_includedir=$(includedir)/libmaus/lcp
 libmauslcp_include_HEADERS=\
@@ -926,7 +941,10 @@ libmausbtree_include_HEADERS=\
 
 libmauslru_includedir=$(includedir)/libmaus/lru
 libmauslru_include_HEADERS=\
-	libmaus/lru/LRU.hpp
+	libmaus/lru/LRU.hpp \
+	libmaus/lru/SparseLRU.hpp \
+	libmaus/lru/SparseLRUFileBunch.hpp \
+	libmaus/lru/FileBunchLRU.hpp
 
 libmausclustering_includedir=$(includedir)/libmaus/clustering
 libmausclustering_include_HEADERS=\
@@ -1014,7 +1032,9 @@ libmausnetwork_include_HEADERS=\
 	libmaus/network/FtpSocketInputStream.hpp \
 	libmaus/network/FileUrl.hpp \
 	libmaus/network/UrlInputStreamBufferWrapper.hpp \
-	libmaus/network/UrlInputStream.hpp
+	libmaus/network/UrlInputStream.hpp \
+	libmaus/network/GnuTLSInit.hpp \
+	libmaus/network/GnuTLSSocket.hpp
 
 libmaussv_includedir=$(includedir)/libmaus/sv
 libmaussv_include_HEADERS=\
@@ -1195,10 +1215,15 @@ noinst_PROGRAMS = \
 	testlowmembamheaderparser \
 	testgeneflatfile \
 	testurlinputstream \
-	testsimpletrie
+	testsimpletrie \
+	testgnutls \
+	testlru
 
 testgunzip_SOURCES = test/testgunzip.cpp
 testgunzip_LDADD = libmaus.la
+
+testlru_SOURCES = test/testlru.cpp
+testlru_LDADD = libmaus.la
 
 testsimpletrie_SOURCES = test/testsimpletrie.cpp
 testsimpletrie_LDADD = libmaus.la
@@ -1511,18 +1536,18 @@ testfastablockrecode_LDADD = libmaus.la
 
 testhttp_SOURCES = test/testhttp.cpp
 testhttp_LDADD = libmaus.la
-testhttp_CPPFLAGS = @OPENSSLCPPFLAGS@ @WARNCPPFLAGS@
-testhttp_LDFLAGS = @OPENSSLLIBS@
+testhttp_CPPFLAGS = @OPENSSLCPPFLAGS@ @GNUTLSCPPFLAGS@ @WARNCPPFLAGS@
+testhttp_LDFLAGS = @OPENSSLLIBS@ @GNUTLSLIBS@
 
 testftp_SOURCES = test/testftp.cpp
 testftp_LDADD = libmaus.la
-testftp_CPPFLAGS = @OPENSSLCPPFLAGS@ @WARNCPPFLAGS@
-testftp_LDFLAGS = @OPENSSLLIBS@
+testftp_CPPFLAGS = @OPENSSLCPPFLAGS@ @GNUTLSCPPFLAGS@ @WARNCPPFLAGS@
+testftp_LDFLAGS = @OPENSSLLIBS@ @GNUTLSLIBS@
 
 testurlinputstream_SOURCES = test/testurlinputstream.cpp
 testurlinputstream_LDADD = libmaus.la
-testurlinputstream_CPPFLAGS = @OPENSSLCPPFLAGS@ @WARNCPPFLAGS@
-testurlinputstream_LDFLAGS = @OPENSSLLIBS@
+testurlinputstream_CPPFLAGS = @OPENSSLCPPFLAGS@ @GNUTLSCPPFLAGS@ @WARNCPPFLAGS@
+testurlinputstream_LDFLAGS = @OPENSSLLIBS@ @GNUTLSLIBS@
 
 testrlhist_SOURCES = test/testrlhist.cpp
 testrlhist_LDADD = libmaus.la
@@ -1549,3 +1574,8 @@ testgeneflatfile_SOURCES = test/testgeneflatfile.cpp
 testgeneflatfile_LDADD = libmaus.la
 testgeneflatfile_CPPFLAGS = ${AM_CPPFLAGS}
 testgeneflatfile_LDFLAGS = ${AM_LDFLAGS}
+
+testgnutls_SOURCES = test/testgnutls.cpp
+testgnutls_LDADD = libmaus.la
+testgnutls_CPPFLAGS = ${AM_CPPFLAGS} @GNUTLSCPPFLAGS@
+testgnutls_LDFLAGS = ${AM_LDFLAGS} @GNUTLSLIBS@
